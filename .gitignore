@@ -1,0 +1,36 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Testing & logs
+.pytest_cache/
+*.log
+
+# Simulation output
+results/*.csv
+!results/final_metrics.csv
+!results/baselines.csv
+!results/forecast_eval.csv
+!results/forecast_policy.csv
+
+# Node (tooling, notebooks)
+node_modules/
+
+# IDE / OS
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
