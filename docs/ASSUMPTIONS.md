@@ -17,7 +17,7 @@ The table below maps all configurable simulation parameters from `SimConfig` ([w
 | `init_time_s` | `1.0` | seconds | Cold start initialization penalty. Models container creation, language runtime boot, and dependency initialization before invocation handling begins. |
 | `mean_exec_s` | `0.2` | seconds | Mean invocation execution duration (log-normal parameter mu). Typical of I/O-bound microservices or lightweight API handlers (200 ms). |
 | `exec_sigma` | `0.5` | seconds | Standard deviation of invocation execution duration (log-normal parameter sigma). Captures variance and right-skewed latency tails in web requests. |
-| `idle_timeout_s` | `300.0` | seconds | Inactivity duration before an idle warm container is evicted. Matches historical default keep-alive behaviors observed in serverless platforms (5 minutes). |
+| `idle_timeout_s` | `60.0` | seconds | Inactivity duration before an idle warm container is evicted. A long timeout can make `no_warming` behave like keep-warm by retaining on-demand instances. |
 | `max_instances` | `100` | instances | Platform-level concurrency ceiling. Prevents unbounded instance allocation and simulates resource limits or account concurrency quotas. |
 | `concurrency_per_instance` | `1` | invocations | Invocations handled concurrently per instance container. Matches standard AWS Lambda container concurrency semantics (single request per worker). |
 | `queue_timeout_s` | `10.0` | seconds | Maximum queue dwell time before invocation drop. Represents API Gateway or client request timeout thresholds (HTTP 504 / 429 throttle error). |

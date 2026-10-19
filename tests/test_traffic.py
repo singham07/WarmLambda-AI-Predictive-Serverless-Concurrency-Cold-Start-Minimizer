@@ -91,6 +91,13 @@ class TestReproducibility:
         )
         assert not same, "Different seeds produced identical traces"
 
+    @pytest.mark.parametrize("scenario", list(SCENARIOS))
+    def test_randomize_false_preserves_legacy_trace(self, scenario: str) -> None:
+        """The new option must not alter the established default path."""
+        implicit = generate_trace(scenario, _DEFAULT_CFG, seed=_SEED)
+        explicit = generate_trace(scenario, _DEFAULT_CFG, seed=_SEED, randomize=False)
+        assert implicit == explicit
+
 
 # ---------------------------------------------------------------------------
 # Arrival properties

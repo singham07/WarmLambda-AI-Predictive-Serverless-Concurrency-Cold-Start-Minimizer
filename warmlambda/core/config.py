@@ -44,7 +44,9 @@ class SimConfig:
     idle_timeout_s : float
         Time in **seconds** after which an idle (warm but not executing)
         instance is automatically evicted to free resources.  Must be > 0.
-        Default: ``300.0`` (5 minutes).
+        Default: ``60.0`` (1 minute).  A long idle timeout can make
+        ``no_warming`` behave like a keep-warm policy because on-demand
+        instances remain available for later requests.
     max_instances : int
         Hard upper limit on the number of concurrent instances the platform
         is allowed to maintain (warm + busy combined).  Must be >= 1.
@@ -92,8 +94,12 @@ class SimConfig:
     # ------------------------------------------------------------------ #
     # Instance lifecycle                                                   #
     # ------------------------------------------------------------------ #
-    idle_timeout_s: float = 300.0
-    """Seconds before an idle warm instance is evicted."""
+    idle_timeout_s: float = 60.0
+    """Seconds before an idle warm instance is evicted.
+
+    Long timeouts make ``no_warming`` behave like keep-warm by retaining
+    instances created on demand.
+    """
 
     max_instances: int = 100
     """Hard cap on total concurrent instances (warm + busy)."""

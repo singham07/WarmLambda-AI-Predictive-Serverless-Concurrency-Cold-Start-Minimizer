@@ -7,6 +7,8 @@ FastAPI application for WarmLambda AI.
 from __future__ import annotations
 
 import sys
+import csv
+import io
 from pathlib import Path
 
 # Ensure workspace root is in sys.path
@@ -16,7 +18,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.schemas import (
@@ -33,7 +35,7 @@ from api.schemas import (
     ScenariosResponse,
     SummaryResponse,
 )
-from api.services import get_results_summary, run_comparison, run_single_simulation
+from api.services import build_capacity_plan, get_results_summary, run_comparison, run_single_simulation
 
 app = FastAPI(
     title="WarmLambda AI API",
@@ -126,6 +128,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Proactive safety margin multiplier above Little's Law (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
+                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(
@@ -134,6 +137,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Headroom margin multiplier on current concurrency (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
+                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(
@@ -142,6 +146,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Safety margin multiplier on both forecast and load (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
+                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(
@@ -161,6 +166,9 @@ def run_simulation(req: RunRequest) -> RunResponse:
         config=sim_data["config"],
         metrics=sim_data["metrics"],
         intervals=sim_data["intervals"],
+        capacity_plan=sim_data["capacity_plan"],
+        summary=sim_data["summary"],
+        plan_resolution_s=sim_data["plan_resolution_s"],
         disclaimer=DISCLAIMER,
     )
 
@@ -173,6 +181,9 @@ def compare_policies(req: CompareRequest) -> CompareResponse:
         pol_name: PolicyRunResult(
             metrics=data["metrics"],
             intervals=data["intervals"],
+            capacity_plan=data["capacity_plan"],
+            summary=data["summary"],
+            plan_resolution_s=data["plan_resolution_s"],
         )
         for pol_name, data in comp_data["results"].items()
     }
@@ -181,6 +192,34 @@ def compare_policies(req: CompareRequest) -> CompareResponse:
         seed=comp_data["seed"],
         results=results_map,
         disclaimer=DISCLAIMER,
+    )
+
+
+@app.post("/plan/export", tags=["Simulation"])
+def export_capacity_plan(req: RunRequest) -> StreamingResponse:
+    """Export one policy's complete capacity plan as an Excel-compatible CSV."""
+    sim_data = run_single_simulation(req)
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow([
+        "time_start_s", "time_end_s", "observed_requests", "predicted_requests",
+        "recommended_warm_instances", "ready_instances", "cold_starts",
+        "avg_latency_s", "p95_latency_s", "dropped_requests",
+        "estimated_cost_units", "shortfall_instances",
+    ])
+    for point in sim_data["capacity_plan"]:
+        writer.writerow([
+            point.t_start, point.t_end, point.observed_requests,
+            point.predicted_requests, point.recommended_warm_instances,
+            point.ready_instances, point.cold_starts, point.avg_latency_s,
+            point.p95_latency_s, point.dropped_requests,
+            point.estimated_cost_units, point.shortfall_instances,
+        ])
+    headers = {"Content-Disposition": 'attachment; filename="capacity_plan.csv"'}
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers=headers,
     )
 
 

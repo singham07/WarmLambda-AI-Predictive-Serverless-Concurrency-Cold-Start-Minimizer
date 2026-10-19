@@ -48,10 +48,16 @@ class WarmLambdaPolicy(Policy):
         self.cfg = cfg
         self.headroom = float(headroom)
         self.name = name if name is not None else "warmlambda_forecast"
+        self.last_forecast_rate: Optional[float] = None
 
     def decide(self, history: TrafficHistory, state: SimState) -> int:  # noqa: ARG002
         """Forecast rate from past counts and compute warm target via Little's Law."""
+        if not history.counts:
+            # A single causal bootstrap instance prevents the first burst from
+            # being entirely exposed to cold-start latency.
+            return 1
         rate = self.forecaster.predict(history.counts, history.window_s)
+        self.last_forecast_rate = rate
         return capacity_from_rate(
             rate=rate,
             mean_exec_s=self.cfg.mean_exec_s,

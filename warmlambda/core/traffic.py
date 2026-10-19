@@ -82,7 +82,7 @@ class Request:
 # ---------------------------------------------------------------------------
 
 
-def _make_moderate(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
+def _make_moderate(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
     """Base 3 req/s with ±30 % sine modulation, period 1200 s.
 
     rate(t) = 3 · (1 + 0.30 · sin(2π·t / 1200))
@@ -90,9 +90,14 @@ def _make_moderate(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
     Maximum rate: 3.0 × 1.30 = 3.90 req/s
     Expected total over 3600 s: 10 800 requests (sine averages to zero).
     """
-    BASE = 3.0
-    AMPLITUDE = 0.30
-    PERIOD = 1_200.0
+    if randomize:
+        rng = np.random.default_rng([seed, 10])
+        out_of_range = seed >= 2000
+        BASE = float(rng.uniform(8.0, 14.0) if out_of_range else rng.uniform(1.0, 8.0))
+        AMPLITUDE = float(rng.uniform(0.90, 0.99) if out_of_range else rng.uniform(0.10, 0.90))
+        PERIOD = float(rng.uniform(2_400.0, 3_600.0) if out_of_range else rng.uniform(300.0, 2_400.0))
+    else:
+        BASE, AMPLITUDE, PERIOD = 3.0, 0.30, 1_200.0
 
     def rate_fn(t: float) -> float:
         return BASE * (1.0 + AMPLITUDE * math.sin(2.0 * math.pi * t / PERIOD))
@@ -100,7 +105,7 @@ def _make_moderate(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
     return rate_fn
 
 
-def _make_high_load(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
+def _make_high_load(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
     """Base 30 req/s with a linear ramp: 0.6× at t=0 → 1.4× at t=duration_s.
 
     rate(t) = 30 · (0.6 + 0.8 · t / duration_s)
@@ -108,16 +113,23 @@ def _make_high_load(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
     Maximum rate: 30 × 1.4 = 42.0 req/s
     Expected total over 3600 s: 108 000 requests.
     """
-    BASE = 30.0
+    if randomize:
+        rng = np.random.default_rng([seed, 11])
+        out_of_range = seed >= 2000
+        BASE = float(rng.uniform(70.0, 110.0) if out_of_range else rng.uniform(10.0, 70.0))
+        start_scale = float(rng.uniform(0.1, 0.3) if out_of_range else rng.uniform(0.3, 0.9))
+        end_scale = float(rng.uniform(2.0, 2.5) if out_of_range else rng.uniform(1.1, 2.0))
+    else:
+        BASE, start_scale, end_scale = 30.0, 0.6, 1.4
 
     def rate_fn(t: float) -> float:
-        scale = 0.6 + 0.8 * (t / cfg.duration_s)
+        scale = start_scale + (end_scale - start_scale) * (t / cfg.duration_s)
         return BASE * scale
 
     return rate_fn
 
 
-def _make_extreme(cfg: SimConfig, seed: int) -> RateFn:
+def _make_extreme(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
     """Base 2 req/s plus 3-6 non-overlapping spikes of 15× lasting 30-120 s.
 
     Spike timing is determined by *seed* so results are fully reproducible.
@@ -126,15 +138,21 @@ def _make_extreme(cfg: SimConfig, seed: int) -> RateFn:
 
     Maximum rate during a spike: 2 × 15 = 30 req/s.
     """
-    BASE = 2.0
-    SPIKE_MULT = 15.0
+    parameter_rng = np.random.default_rng([seed, 12])
+    out_of_range = randomize and seed >= 2000
+    BASE = float(parameter_rng.uniform(8.0, 12.0) if out_of_range else parameter_rng.uniform(0.5, 8.0)) if randomize else 2.0
+    SPIKE_MULT = float(parameter_rng.uniform(35.0, 50.0) if out_of_range else parameter_rng.uniform(5.0, 35.0)) if randomize else 15.0
     MIN_GAP = 5.0  # minimum seconds between consecutive spikes / edges
 
     # Use [seed, 1] so spike placement and arrival thinning are independent
     rng = np.random.default_rng([seed, 1])
 
-    n_spikes = int(rng.integers(3, 7))  # inclusive range [3, 6]
-    durations = rng.uniform(30.0, 120.0, size=n_spikes)
+    if randomize:
+        n_spikes = int(parameter_rng.integers(8, 12) if out_of_range else parameter_rng.integers(2, 10))
+        durations = parameter_rng.uniform(240.0, 360.0, size=n_spikes) if out_of_range else parameter_rng.uniform(15.0, 240.0, size=n_spikes)
+    else:
+        n_spikes = int(rng.integers(3, 7))  # inclusive range [3, 6]
+        durations = rng.uniform(30.0, 120.0, size=n_spikes)
 
     total_spike = float(durations.sum())
     min_slack = MIN_GAP * (n_spikes + 1)
@@ -169,7 +187,7 @@ def _make_extreme(cfg: SimConfig, seed: int) -> RateFn:
     return rate_fn
 
 
-def _make_periodic(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
+def _make_periodic(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
     """Base 5 req/s with 60 % sine amplitude, period 600 s.
 
     rate(t) = 5 · (1 + 0.60 · sin(2π·t / 600))
@@ -177,9 +195,14 @@ def _make_periodic(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
     Maximum rate: 5.0 × 1.60 = 8.0 req/s.
     The repeating 600 s pattern completes 6 full cycles in a 3600 s simulation.
     """
-    BASE = 5.0
-    AMPLITUDE = 0.60
-    PERIOD = 600.0
+    if randomize:
+        rng = np.random.default_rng([seed, 13])
+        out_of_range = seed >= 2000
+        BASE = float(rng.uniform(15.0, 25.0) if out_of_range else rng.uniform(1.0, 15.0))
+        AMPLITUDE = float(rng.uniform(0.95, 0.99) if out_of_range else rng.uniform(0.15, 0.95))
+        PERIOD = float(rng.uniform(1_800.0, 3_000.0) if out_of_range else rng.uniform(180.0, 1_800.0))
+    else:
+        BASE, AMPLITUDE, PERIOD = 5.0, 0.60, 600.0
 
     def rate_fn(t: float) -> float:
         return BASE * (1.0 + AMPLITUDE * math.sin(2.0 * math.pi * t / PERIOD))
@@ -191,7 +214,7 @@ def _make_periodic(cfg: SimConfig, seed: int) -> RateFn:  # noqa: ARG001
 # Scenario registry
 # ---------------------------------------------------------------------------
 
-SCENARIOS: dict[str, Callable[[SimConfig, int], RateFn]] = {
+SCENARIOS: dict[str, Callable[..., RateFn]] = {
     "moderate": _make_moderate,
     "high_load": _make_high_load,
     "extreme": _make_extreme,
@@ -248,7 +271,12 @@ def get_max_rate(
 # ---------------------------------------------------------------------------
 
 
-def generate_trace(scenario: str, cfg: SimConfig, seed: int) -> list[Request]:
+def generate_trace(
+    scenario: str,
+    cfg: SimConfig,
+    seed: int,
+    randomize: bool = False,
+) -> list[Request]:
     """Generate a complete invocation trace using a non-homogeneous Poisson process.
 
     Uses the Lewis-Shedler *thinning* method:
@@ -290,7 +318,7 @@ def generate_trace(scenario: str, cfg: SimConfig, seed: int) -> list[Request]:
             f"Unknown scenario {scenario!r}. Valid scenarios: {sorted(SCENARIOS)}"
         )
 
-    rate_fn = SCENARIOS[scenario](cfg, seed)
+    rate_fn = SCENARIOS[scenario](cfg, seed, randomize)
 
     # --- Compute λ_max on a fine grid ----------------------------------------
     ts_grid = np.linspace(0.0, cfg.duration_s, 10_000, endpoint=False)

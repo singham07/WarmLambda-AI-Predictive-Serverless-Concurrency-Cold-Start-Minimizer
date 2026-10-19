@@ -80,6 +80,7 @@ def test_run_per_policy(policy: str) -> None:
         "headroom": 0.5,
         "seed": 42,
         "duration_s": 100.0,
+        "allow_short_runs": True,
     }
     response = client.post("/run", json=payload)
     assert response.status_code == 200
@@ -131,6 +132,40 @@ def test_bad_headroom_422() -> None:
     assert response.status_code == 422
 
 
+def test_short_run_requires_opt_in() -> None:
+    """Durations below 600 seconds require an explicit diagnostic opt-in."""
+    response = client.post(
+        "/run",
+        json={"scenario": "moderate", "policy": "no_warming", "duration_s": 100.0},
+    )
+    assert response.status_code == 422
+    assert "allow_short_runs=true" in response.json()["detail"][0]["msg"]
+
+
+def test_short_run_opt_in_is_accepted() -> None:
+    """The opt-in allows focused short diagnostic simulations."""
+    response = client.post(
+        "/run",
+        json={
+            "scenario": "moderate",
+            "policy": "no_warming",
+            "duration_s": 100.0,
+            "allow_short_runs": True,
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_api_default_duration_is_one_hour() -> None:
+    """Omitting duration_s uses the standard 3600-second simulation window."""
+    response = client.post(
+        "/run",
+        json={"scenario": "moderate", "policy": "no_warming"},
+    )
+    assert response.status_code == 200
+    assert response.json()["config"]["duration_s"] == 3600.0
+
+
 def test_compare_identical_traffic_totals() -> None:
     """POST /compare benchmarks policies on identical traffic."""
     policies = ["no_warming", "fixed", "reactive", "wl_full"]
@@ -141,6 +176,7 @@ def test_compare_identical_traffic_totals() -> None:
         "headroom": 0.5,
         "seed": 42,
         "duration_s": 100.0,
+        "allow_short_runs": True,
     }
     response = client.post("/compare", json=payload)
     assert response.status_code == 200

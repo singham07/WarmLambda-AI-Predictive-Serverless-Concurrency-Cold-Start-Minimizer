@@ -40,7 +40,7 @@ class TestDefaults:
         assert self.cfg.exec_sigma == 0.5
 
     def test_idle_timeout_s(self) -> None:
-        assert self.cfg.idle_timeout_s == 300.0
+        assert self.cfg.idle_timeout_s == 60.0
 
     def test_max_instances(self) -> None:
         assert self.cfg.max_instances == 100

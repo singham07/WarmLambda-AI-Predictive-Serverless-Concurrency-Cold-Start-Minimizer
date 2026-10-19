@@ -100,16 +100,20 @@ def main() -> None:
     # ----- Aggregate & Print Pivot Tables -----
     cold_start_sum: dict[tuple[str, str], float] = defaultdict(float)
     cost_sum: dict[tuple[str, str], float] = defaultdict(float)
+    p95_sum: dict[tuple[str, str], float] = defaultdict(float)
     count: dict[tuple[str, str], int] = defaultdict(int)
 
     for r in rows:
         key = (r["scenario"], r["policy"])
         cs = r.get("cold_start_rate")
         tc = r.get("total_cost")
+        p95 = r.get("p95_latency_s")
         if isinstance(cs, (int, float)) and not (isinstance(cs, float) and math.isnan(cs)):
             cold_start_sum[key] += float(cs)
         if isinstance(tc, (int, float)) and not (isinstance(tc, float) and math.isnan(tc)):
             cost_sum[key] += float(tc)
+        if isinstance(p95, (int, float)) and not (isinstance(p95, float) and math.isnan(p95)):
+            p95_sum[key] += float(p95)
         count[key] += 1
 
     all_scenarios = list(SCENARIOS.keys())
@@ -144,6 +148,16 @@ def main() -> None:
                 row.append("nan")
         cost_rows.append(row)
     print(_format_table(header, cost_rows))
+
+    print("\n=== Mean p95_latency_s by scenario and policy ===")
+    p95_rows = []
+    for sc in all_scenarios:
+        row = [sc]
+        for pol in ordered_policy_names:
+            cnt = count.get((sc, pol), 0)
+            row.append(f"{p95_sum[(sc, pol)] / cnt:.6f}" if cnt > 0 else "nan")
+        p95_rows.append(row)
+    print(_format_table(header, p95_rows))
 
 
 if __name__ == "__main__":

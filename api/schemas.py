@@ -7,7 +7,8 @@ Pydantic models and request validation for the WarmLambda AI API.
 from __future__ import annotations
 
 from typing import Any, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+from warmlambda.core.forecaster_registry import default_model_name
 
 DISCLAIMER: str = "Simulated estimates under stated assumptions; not real AWS costs."
 
@@ -58,14 +59,24 @@ class RunRequest(BaseModel):
     fixed_n: Optional[int] = Field(default=None, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
+    model: str = Field(default_factory=default_model_name, description="Forecaster: ewma, seasonal, hgb, hgb_q90, or gru")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides
     init_time_s: Optional[float] = Field(default=None, gt=0.0, description="Cold start initialization time")
     mean_exec_s: Optional[float] = Field(default=None, gt=0.0, description="Mean execution duration")
-    duration_s: Optional[float] = Field(default=None, gt=0.0, le=86400.0, description="Simulation duration")
+    duration_s: float = Field(default=3600.0, gt=0.0, le=86400.0, description="Simulation duration (minimum 600 unless allow_short_runs is true)")
+    allow_short_runs: bool = Field(default=False, description="Allow diagnostic runs shorter than 600 seconds")
     idle_timeout_s: Optional[float] = Field(default=None, gt=0.0, description="Idle instance timeout")
     max_instances: Optional[int] = Field(default=None, ge=1, le=10000, description="Max concurrent instance limit")
+
+    @model_validator(mode="after")
+    def validate_duration(self) -> "RunRequest":
+        if self.duration_s < 600.0 and not self.allow_short_runs:
+            raise ValueError(
+                "duration_s must be at least 600 seconds unless allow_short_runs=true"
+            )
+        return self
 
     @field_validator("scenario")
     @classmethod
@@ -98,14 +109,24 @@ class CompareRequest(BaseModel):
     fixed_n: Optional[int] = Field(default=5, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
+    model: str = Field(default_factory=default_model_name, description="Forecaster name")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides
     init_time_s: Optional[float] = Field(default=None, gt=0.0)
     mean_exec_s: Optional[float] = Field(default=None, gt=0.0)
-    duration_s: Optional[float] = Field(default=None, gt=0.0, le=86400.0)
+    duration_s: float = Field(default=3600.0, gt=0.0, le=86400.0)
+    allow_short_runs: bool = Field(default=False, description="Allow diagnostic runs shorter than 600 seconds")
     idle_timeout_s: Optional[float] = Field(default=None, gt=0.0)
     max_instances: Optional[int] = Field(default=None, ge=1, le=10000)
+
+    @model_validator(mode="after")
+    def validate_duration(self) -> "CompareRequest":
+        if self.duration_s < 600.0 and not self.allow_short_runs:
+            raise ValueError(
+                "duration_s must be at least 600 seconds unless allow_short_runs=true"
+            )
+        return self
 
     @field_validator("scenario")
     @classmethod
@@ -127,15 +148,36 @@ class IntervalPoint(BaseModel):
     queue_length: int
 
 
+class CapacityPlanPoint(BaseModel):
+    t_start: float
+    t_end: float
+    observed_requests: int
+    predicted_requests: Optional[float]
+    recommended_warm_instances: int
+    ready_instances: int
+    cold_starts: int
+    avg_latency_s: Optional[float]
+    p95_latency_s: Optional[float]
+    dropped_requests: int
+    estimated_cost_units: float
+    shortfall_instances: int
+
+
 class RunResponse(BaseResponse):
     config: dict[str, Any]
     metrics: dict[str, Any]
     intervals: list[IntervalPoint]
+    capacity_plan: list[CapacityPlanPoint]
+    summary: dict[str, Any]
+    plan_resolution_s: float
 
 
 class PolicyRunResult(BaseModel):
     metrics: dict[str, Any]
     intervals: list[IntervalPoint]
+    capacity_plan: list[CapacityPlanPoint]
+    summary: dict[str, Any]
+    plan_resolution_s: float
 
 
 class CompareResponse(BaseResponse):

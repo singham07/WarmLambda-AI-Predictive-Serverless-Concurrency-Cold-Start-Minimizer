@@ -14,10 +14,11 @@ from typing import Any, Optional
 import pandas as pd
 from fastapi import HTTPException
 
-from api.schemas import CompareRequest, IntervalPoint, RunRequest
+from api.schemas import CapacityPlanPoint, CompareRequest, IntervalPoint, RunRequest
 from warmlambda.core.capacity import capacity_from_rate
 from warmlambda.core.config import SimConfig
 from warmlambda.core.forecaster import EWMAForecaster
+from warmlambda.core.forecaster_registry import get_forecaster
 from warmlambda.core.metrics import compute_metrics
 from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 from warmlambda.core.policies.fixed import FixedWarming
@@ -43,17 +44,30 @@ class WarmLambdaHybridPolicy(Policy):
         cfg: SimConfig,
         headroom: float = 0.5,
         warm_budget: Optional[int] = None,
+        model: str = "ewma",
     ) -> None:
         self.mode = mode
         self.cfg = cfg
         self.headroom = float(headroom)
         self.warm_budget = warm_budget
         self.name = mode
-        self.forecaster = EWMAForecaster(alpha=0.4)
+        self.forecaster = get_forecaster(model)
+        self.last_forecast_rate: Optional[float] = None
+        self.last_budget_clamped = False
         self.forecast_history: dict[float, float] = {}
 
     def decide(self, history: TrafficHistory, state: SimState) -> int:
+        if not history.counts and self.mode in {"wl_forecast_only", "wl_full"}:
+            target = 1
+            if self.warm_budget is not None:
+                self.last_budget_clamped = target > self.warm_budget
+                target = min(target, self.warm_budget)
+            else:
+                self.last_budget_clamped = False
+            return max(0, min(self.cfg.max_instances, target))
+
         rate = self.forecaster.predict(history.counts, history.window_s)
+        self.last_forecast_rate = rate
         self.forecast_history[history.now] = rate
 
         if self.mode == "wl_forecast_only":
@@ -107,6 +121,7 @@ def instantiate_policy(
     fixed_n: Optional[int] = 5,
     headroom: float = 0.5,
     warm_budget: Optional[int] = None,
+    model: str = "ewma",
 ) -> tuple[Policy, Optional[dict[float, float]]]:
     """Create a policy instance and optionally return its forecast tracker."""
     forecast_tracker: Optional[dict[float, float]] = None
@@ -124,6 +139,7 @@ def instantiate_policy(
             cfg=cfg,
             headroom=headroom,
             warm_budget=warm_budget,
+            model=model,
         )
         forecast_tracker = p.forecast_history
         policy = p
@@ -177,6 +193,67 @@ def downsample_intervals(
     return [points[i] for i in sorted_indices]
 
 
+def build_capacity_plan(
+    result: SimResult,
+    cfg: SimConfig,
+    max_points: int = 1000,
+) -> tuple[list[CapacityPlanPoint], float]:
+    """Serialize the complete plan, grouping adjacent intervals when needed."""
+    records = result.intervals
+    resolution = cfg.decision_interval_s
+    group_size = max(1, math.ceil(len(records) / max_points))
+    points: list[CapacityPlanPoint] = []
+    for offset in range(0, len(records), group_size):
+        group = records[offset:offset + group_size]
+        def average(values: list[float | None]) -> float | None:
+            present = [value for value in values if value is not None]
+            return sum(present) / len(present) if present else None
+        points.append(CapacityPlanPoint(
+            t_start=group[0].t_start,
+            t_end=group[-1].t_end,
+            observed_requests=sum(item.observed_requests for item in group),
+            predicted_requests=(
+                sum(item.predicted_requests for item in group if item.predicted_requests is not None)
+                if any(item.predicted_requests is not None for item in group) else None
+            ),
+            recommended_warm_instances=round(sum(item.recommended_warm for item in group) / len(group)),
+            ready_instances=round(sum(item.ready_instances for item in group) / len(group)),
+            cold_starts=sum(item.cold_starts for item in group),
+            avg_latency_s=average([item.avg_latency_s for item in group]),
+            p95_latency_s=average([item.p95_latency_s for item in group]),
+            dropped_requests=sum(item.dropped_requests for item in group),
+            estimated_cost_units=sum(item.interval_cost for item in group),
+            shortfall_instances=round(sum(item.shortfall for item in group) / len(group)),
+        ))
+    return points, resolution * group_size
+
+
+def build_plan_summary(
+    result: SimResult,
+    metrics: dict[str, Any],
+    cfg: SimConfig,
+) -> dict[str, Any]:
+    """Return plain-number capacity-plan summary values."""
+    plans = result.intervals
+    return {
+        "total_cold_starts": int(metrics["cold_start_count"]),
+        "cold_start_rate": float(metrics["cold_start_rate"]) if not math.isnan(metrics["cold_start_rate"]) else None,
+        "mean_latency_s": float(metrics["mean_latency_s"]) if not math.isnan(metrics["mean_latency_s"]) else None,
+        "p95_latency_s": float(metrics["p95_latency_s"]) if not math.isnan(metrics["p95_latency_s"]) else None,
+        "total_cost": float(metrics["total_cost"]),
+        "average_recommended_warm": float(sum(item.recommended_warm for item in plans) / len(plans)) if plans else 0.0,
+        "peak_recommended_warm": int(max((item.recommended_warm for item in plans), default=0)),
+        "intervals_with_shortfall": int(sum(item.shortfall > 0 for item in plans)),
+        "intervals_with_waste": int(sum(
+            item.ready_instances > max(0, math.ceil(
+                item.observed_requests / max(item.t_end - item.t_start, 1e-12)
+                * cfg.mean_exec_s
+            )) * 2
+            for item in plans
+        )),
+    }
+
+
 def run_single_simulation(req: RunRequest) -> dict[str, Any]:
     """Run one simulation scenario and return config, metrics, and intervals."""
     cfg = build_config(req)
@@ -189,6 +266,7 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         fixed_n=req.fixed_n,
         headroom=req.headroom,
         warm_budget=req.warm_budget,
+        model=req.model,
     )
 
     result = simulate(trace, policy, cfg)
@@ -200,9 +278,12 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         forecast_tracker=forecast_tracker,
         max_points=500,
     )
+    capacity_plan, plan_resolution_s = build_capacity_plan(result, cfg)
+    summary = build_plan_summary(result, raw_metrics, cfg)
 
     config_dict = {
         "duration_s": cfg.duration_s,
+        "model": req.model,
         "init_time_s": cfg.init_time_s,
         "mean_exec_s": cfg.mean_exec_s,
         "idle_timeout_s": cfg.idle_timeout_s,
@@ -217,6 +298,9 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         "config": config_dict,
         "metrics": metrics,
         "intervals": intervals,
+        "capacity_plan": capacity_plan,
+        "summary": summary,
+        "plan_resolution_s": plan_resolution_s,
     }
 
 
@@ -235,6 +319,7 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
             fixed_n=req.fixed_n,
             headroom=req.headroom,
             warm_budget=req.warm_budget,
+            model=req.model,
         )
 
         result = simulate(trace, policy, cfg)
@@ -246,10 +331,15 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
             forecast_tracker=forecast_tracker,
             max_points=500,
         )
+        capacity_plan, plan_resolution_s = build_capacity_plan(result, cfg)
+        summary = build_plan_summary(result, raw_metrics, cfg)
 
         results[pol_name] = {
             "metrics": metrics,
             "intervals": intervals,
+            "capacity_plan": capacity_plan,
+            "summary": summary,
+            "plan_resolution_s": plan_resolution_s,
         }
 
     return {

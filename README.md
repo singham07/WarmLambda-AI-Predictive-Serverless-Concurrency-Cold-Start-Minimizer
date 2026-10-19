@@ -4,6 +4,10 @@ WarmLambda AI is a discrete-event simulator and interactive dashboard designed t
 
 It models the full container lifecycle (cold starts, warm idle states, active execution, eviction, and queue timeouts) and benchmarks predictive keep-alive strategies against reactive and static provisioning baselines. Costs are measured in dimensionless simulation units, providing a controlled environment for algorithmic research without cloud provider costs or deployment overheads.
 
+The standard simulation duration is **3600 seconds (1 hour)** and the default
+idle timeout is **60 seconds**. API requests shorter than 600 seconds are
+rejected unless they explicitly set `allow_short_runs=true` for diagnostics.
+
 > [!NOTE]
 > All simulation results, metrics, and capacity levels are simulated estimates under stated theoretical assumptions. They are not real AWS measurements or billing invoices.
 
@@ -121,14 +125,36 @@ Run the automated simulation benchmark scripts directly from the repository root
    ```
    Output: `results/forecast_eval.csv`.
 
-3. **Run Baseline Policies**:
+3. **Train machine-learning forecasters**:
+   Builds a cached 288,000-row randomized dataset, trains HGB and (when
+   TensorFlow is installed) GRU models using seed-group validation:
+   ```bash
+   python -m experiments.train_forecasters
+   ```
+   Models and metadata are written to `models/`.
+
+4. **Run Baseline Policies**:
    Evaluates No-Warming, Fixed-Warming ($n \in \{1, 2, 5, 10, 20\}$), Reactive, and Oracle policies:
    ```bash
    python -m experiments.run_baselines
    ```
    Output: `results/baselines.csv`.
 
-4. **Run WarmLambda Forecast Policies**:
+5. **Diagnose policy separation**:
+   ```bash
+   python -m experiments.diagnose
+   ```
+   Prints the first 20 policy targets, ready/busy snapshots, instance
+   creation sources, and cold starts for moderate and high-load traces.
+
+6. **Run the policy ablation**:
+   ```bash
+   python -m experiments.run_ablation
+   ```
+   Prints mean cold-start rate, p95 latency, and total cost for moderate,
+   high-load, extreme, and periodic scenarios.
+
+7. **Run WarmLambda Forecast Policies**:
    Evaluates WarmLambda across headroom levels (0.2, 0.5, 1.0) and combines with baseline results:
    ```bash
    python -m experiments.run_forecast_policy

@@ -6,3 +6,6 @@ fastapi
 uvicorn
 pydantic
 httpx
+scikit-learn
+joblib
+tensorflow-cpu

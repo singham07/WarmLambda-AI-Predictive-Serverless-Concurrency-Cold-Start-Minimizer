@@ -35,6 +35,8 @@ from dataclasses import dataclass, field
 from enum import IntEnum, auto
 from typing import Optional
 
+import numpy as np
+
 from warmlambda.core.config import SimConfig
 from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 from warmlambda.core.traffic import Request
@@ -45,6 +47,7 @@ from warmlambda.core.traffic import Request
 # ---------------------------------------------------------------------------
 
 class _EventType(IntEnum):
+    INITIAL_POLICY_TICK = auto()
     REQUEST_ARRIVAL = auto()
     REQUEST_FINISH = auto()
     INSTANCE_READY = auto()      # cold-start finished
@@ -108,6 +111,20 @@ class IntervalRecord:
     initializing: int
     queue_length: int
     arrivals_in_window: int
+    t_start: float = 0.0
+    t_end: float = 0.0
+    observed_requests: int = 0
+    predicted_requests: Optional[float] = None
+    recommended_warm: int = 0
+    ready_instances: int = 0
+    cold_starts: int = 0
+    avg_latency_s: Optional[float] = None
+    p95_latency_s: Optional[float] = None
+    dropped_requests: int = 0
+    interval_cost: float = 0.0
+    shortfall: int = 0
+    forecast_rate: Optional[float] = None
+    budget_clamped: bool = False
 
 
 @dataclass
@@ -132,6 +149,8 @@ class SimResult:
     busy_seconds: float = 0.0
     idle_warm_seconds: float = 0.0
     init_seconds: float = 0.0
+    policy_created_instances: int = 0
+    on_demand_created_instances: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +204,15 @@ def simulate(
     total_busy_s = 0.0
     total_idle_s = 0.0
     total_init_s = 0.0
+    policy_created_instances = 0
+    on_demand_created_instances = 0
 
     intervals: list[IntervalRecord] = []
+    interval_costs = {
+        "busy": [0.0] * int(math.ceil(cfg.duration_s / decision_dt)),
+        "idle": [0.0] * int(math.ceil(cfg.duration_s / decision_dt)),
+        "init": [0.0] * int(math.ceil(cfg.duration_s / decision_dt)),
+    }
 
     # ----- helper: count alive instances -----
     def _count_by_state(st: _InstanceState) -> int:
@@ -215,11 +241,34 @@ def simulate(
         nonlocal total_busy_s, total_idle_s, total_init_s
         iid = inst.id
         if iid in inst_busy_enter:
-            total_busy_s += now - inst_busy_enter.pop(iid)
+            start = inst_busy_enter.pop(iid)
+            duration = max(0.0, min(now, cfg.duration_s) - start)
+            total_busy_s += duration
+            _account_interval("busy", start, now)
         if iid in inst_idle_enter:
-            total_idle_s += now - inst_idle_enter.pop(iid)
+            start = inst_idle_enter.pop(iid)
+            duration = max(0.0, min(now, cfg.duration_s) - start)
+            total_idle_s += duration
+            _account_interval("idle", start, now)
         if iid in inst_init_enter:
-            total_init_s += now - inst_init_enter.pop(iid)
+            start = inst_init_enter.pop(iid)
+            duration = max(0.0, min(now, cfg.duration_s) - start)
+            total_init_s += duration
+            _account_interval("init", start, now)
+
+    def _account_interval(kind: str, start: float, end: float) -> None:
+        """Attribute an instance-state segment to each overlapping interval."""
+        clipped_start = max(0.0, start)
+        clipped_end = min(cfg.duration_s, end)
+        if clipped_end <= clipped_start:
+            return
+        first = int(clipped_start / decision_dt)
+        last = min(len(interval_costs[kind]) - 1, int((clipped_end - 1e-12) / decision_dt))
+        for index in range(first, last + 1):
+            overlap_start = max(clipped_start, index * decision_dt)
+            overlap_end = min(clipped_end, (index + 1) * decision_dt)
+            if overlap_end > overlap_start:
+                interval_costs[kind][index] += overlap_end - overlap_start
 
     # ----- helper: set instance state and record entry time -----
     def _set_state(inst: _Instance, new_state: _InstanceState, now: float) -> None:
@@ -236,7 +285,11 @@ def simulate(
 
     # ----- helper: create a new instance (cold start) -----
     def _create_instance(now: float, pending_req_id: int = -1) -> _Instance:
-        nonlocal next_instance_id
+        nonlocal next_instance_id, policy_created_instances, on_demand_created_instances
+        if pending_req_id >= 0:
+            on_demand_created_instances += 1
+        else:
+            policy_created_instances += 1
         iid = next_instance_id
         next_instance_id += 1
         inst = _Instance(
@@ -307,6 +360,9 @@ def simulate(
         arrival_counts[idx] += 1
 
     # ----- seed the event heap -----
+    # Give proactive policies a causal bootstrap decision before traffic
+    # starts.  The history is empty, so this cannot use future arrivals.
+    heapq.heappush(heap, _Event(time=0.0, kind=_EventType.INITIAL_POLICY_TICK))
     for req in trace:
         req_meta[req.id] = {
             "arrival": req.arrival_s,
@@ -475,7 +531,7 @@ def simulate(
             else:
                 _remove_instance(inst, now)
 
-        elif event.kind == _EventType.POLICY_TICK:
+        elif event.kind in (_EventType.INITIAL_POLICY_TICK, _EventType.POLICY_TICK):
             # Build TrafficHistory: only completed past windows
             n_completed = int(now / decision_dt)
             completed_counts = [
@@ -515,6 +571,8 @@ def simulate(
                 arrivals_in_window=_arrivals_in_window(
                     max(0, n_completed - 1)
                 ),
+                forecast_rate=getattr(policy, "last_forecast_rate", None),
+                budget_clamped=getattr(policy, "last_budget_clamped", False),
             ))
 
             # If target exceeds current total instances, create new ones
@@ -548,10 +606,80 @@ def simulate(
         for rid, meta in sorted(req_meta.items())
     ]
 
+    interval_records = _complete_interval_records(
+        intervals,
+        request_records,
+        interval_costs,
+        cfg,
+    )
+
     return SimResult(
         requests=request_records,
-        intervals=intervals,
+        intervals=interval_records,
         busy_seconds=total_busy_s,
         idle_warm_seconds=total_idle_s,
         init_seconds=total_init_s,
+        policy_created_instances=policy_created_instances,
+        on_demand_created_instances=on_demand_created_instances,
     )
+
+
+def _complete_interval_records(
+    intervals: list[IntervalRecord],
+    requests: list[RequestRecord],
+    interval_costs: dict[str, list[float]],
+    cfg: SimConfig,
+) -> list[IntervalRecord]:
+    """Add request outcomes and exact state cost to each decision interval."""
+    n_intervals = int(math.ceil(cfg.duration_s / cfg.decision_interval_s))
+    snapshots = {int(round(record.t / cfg.decision_interval_s)): record for record in intervals}
+    completed: list[IntervalRecord] = []
+    for index in range(n_intervals):
+        start = index * cfg.decision_interval_s
+        end = min(cfg.duration_s, (index + 1) * cfg.decision_interval_s)
+        snapshot = snapshots.get(index)
+        target = snapshot.target if snapshot else 0
+        ready = snapshot.ready if snapshot else 0
+        forecast = snapshot.forecast_rate if snapshot else None
+        budget_clamped = snapshot.budget_clamped if snapshot else False
+        in_interval = [
+            request for request in requests
+            if start <= request.arrival_s < end
+        ]
+        latencies = [
+            request.latency_s for request in in_interval
+            if not request.dropped and request.latency_s is not None
+        ]
+        observed = len(in_interval)
+        needed = math.ceil(
+            observed / (end - start) * cfg.mean_exec_s
+        ) if observed else 0
+        cost = (
+            interval_costs["busy"][index] * cfg.busy_cost_weight
+            + (interval_costs["idle"][index] + interval_costs["init"][index])
+            * cfg.warm_cost_weight
+        )
+        completed.append(IntervalRecord(
+            t=start,
+            target=target,
+            ready=ready,
+            busy=snapshot.busy if snapshot else 0,
+            initializing=snapshot.initializing if snapshot else 0,
+            queue_length=snapshot.queue_length if snapshot else 0,
+            arrivals_in_window=observed,
+            t_start=start,
+            t_end=end,
+            observed_requests=observed,
+            predicted_requests=None if forecast is None else forecast * (end - start),
+            recommended_warm=target,
+            ready_instances=ready,
+            cold_starts=sum(1 for request in in_interval if request.cold and not request.dropped),
+            avg_latency_s=float(sum(latencies) / len(latencies)) if latencies else None,
+            p95_latency_s=float(np.percentile(latencies, 95)) if latencies else None,
+            dropped_requests=sum(1 for request in in_interval if request.dropped),
+            interval_cost=cost,
+            shortfall=max(0, needed - ready),
+            forecast_rate=forecast,
+            budget_clamped=budget_clamped,
+        ))
+    return completed
