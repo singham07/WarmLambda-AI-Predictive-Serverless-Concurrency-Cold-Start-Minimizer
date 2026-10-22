@@ -11,20 +11,17 @@ export default function App() {
     <BrowserRouter>
       <header className="site-header">
         <div className="header-inner">
-          <div>
-            <Link to="/" className="brand">WarmLambda AI</Link>
-            <p className="brand-subtitle">
-              Predicts traffic and recommends how many instances to keep warm. Tested in a simulator.
-            </p>
-          </div>
+          <Link to="/" className="brand-lockup">
+            <span className="brand-mark" aria-hidden="true">WL</span>
+            <span><strong className="brand">WarmLambda AI</strong><span className="brand-subtitle">capacity intelligence console</span></span>
+          </Link>
           <nav className="site-nav" aria-label="Primary navigation">
-            <NavLink to="/" end>Dashboard</NavLink>
-            <NavLink to="/experiment-results">Experiment results</NavLink>
+            <NavLink to="/" end>Workbench</NavLink>
+            <NavLink to="/experiment-results">Benchmark archive</NavLink>
           </nav>
         </div>
-        <div className="notice-banner">Simulated estimates, not real AWS measurements or costs.</div>
+        <div className="notice-banner"><strong>SIMULATION MODE</strong> &nbsp; Outputs are modeled estimates, not live cloud telemetry or billing data.</div>
       </header>
-
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -34,13 +31,9 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-
       <footer className="site-footer">
-        <div>
-          <Link to="/privacy">Privacy Policy</Link>
-          <Link to="/terms">Terms and Conditions</Link>
-        </div>
-        <span>College project, GLA University.</span>
+        <div><Link to="/privacy">Privacy Policy</Link><Link to="/terms">Terms and Conditions</Link></div>
+        <span>Academic systems engineering project</span>
       </footer>
     </BrowserRouter>
   );

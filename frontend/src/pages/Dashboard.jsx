@@ -110,6 +110,10 @@ function SetupCard({ state, setState, onRun, loading, error }) {
   };
   return (
     <section className="card setup-card">
+      <div className="setup-card-heading">
+        <div><p className="eyebrow">RUN CONFIGURATION</p><h2>Define a workload experiment</h2><p>Use the same generated trace to compare warming policies fairly.</p></div>
+        <span className="setup-id">POST /compare</span>
+      </div>
       <div className="setup-main">
         <div className="field">
           <label htmlFor="traffic">Traffic</label>
@@ -312,6 +316,10 @@ export default function Dashboard() {
   const settings = useMemo(() => ({ ...state }), [state]);
   return (
     <div className="dashboard">
+      <div className="page-heading">
+        <div><p className="eyebrow">WARM CAPACITY / WORKBENCH</p><h1>Simulation workbench</h1><p>Trace demand, test capacity policies, and inspect the operational tradeoffs before deployment.</p></div>
+        <span className="run-state"><span className="state-dot" /> local simulator</span>
+      </div>
       <section className="process-strip" aria-label="Simulation steps">{["Simulate traffic", "Predict demand", "Recommend warm instances", "Report results"].map((step, index) => <div className="process-step" key={step}><span>{index + 1}</span>{step}</div>)}</section>
       <SetupCard state={state} setState={setState} onRun={run} loading={loading} error={error} />
       {!result && <EmptyState />}
