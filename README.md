@@ -105,6 +105,24 @@ npm run check
 npm run build
 ```
 
+### Production deployment with Docker
+
+The repository includes a production image that builds the dashboard and serves
+it from FastAPI. Build and run it from the repository root:
+
+```bash
+docker build -t warmlambda .
+docker run --rm -p 8000:8000 warmlambda
+```
+
+Open [http://localhost:8000](http://localhost:8000). The API health endpoint is
+available at [http://localhost:8000/health](http://localhost:8000/health).
+
+For a separately hosted frontend, set `VITE_API_URL` to the public API URL at
+frontend build time and set `ALLOWED_ORIGINS` on the API to a comma-separated
+list of allowed frontend origins. When the dashboard is served by this image,
+same-origin requests are used automatically.
+
 ---
 
 ## Running Experiments

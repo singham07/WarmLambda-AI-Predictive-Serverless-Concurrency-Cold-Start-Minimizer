@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 import csv
 import io
+import os
 from pathlib import Path
 
 # Ensure workspace root is in sys.path
@@ -43,13 +44,21 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS for local web frontends
+# Enable CORS for local web frontends and an optional deployed frontend.
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
 ]
+configured_origins = os.getenv("ALLOWED_ORIGINS", "")
+if configured_origins:
+    origins.extend(
+        origin.strip()
+        for origin in configured_origins.split(",")
+        if origin.strip()
+    )
+origins = list(dict.fromkeys(origins))
 
 app.add_middleware(
     CORSMiddleware,
