@@ -1,6 +1,3 @@
 export const CONTACT_EMAIL = "";
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const runningInLocalDev = typeof window !== "undefined"
-  && ["3000", "5173"].includes(window.location.port);
-export const API_BASE_URL = configuredApiUrl
-  || (runningInLocalDev ? "http://localhost:8000" : window.location.origin);
+// In development the API runs on port 8000. When the build is served by the API itself, calls stay on the same origin.
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
