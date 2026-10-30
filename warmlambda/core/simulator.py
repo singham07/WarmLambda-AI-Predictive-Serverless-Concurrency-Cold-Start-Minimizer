@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections import deque
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
 from typing import Optional
@@ -185,7 +186,7 @@ def simulate(
     held_target = 0  # current policy target
 
     # Queue: list of (request_id, arrival_time)
-    queue: list[tuple[int, float]] = []
+    queue: deque[tuple[int, float]] = deque()
     # Track which queued requests have already been dropped
     dropped_set: set[int] = set()
 
@@ -264,6 +265,9 @@ def simulate(
             return
         first = int(clipped_start / decision_dt)
         last = min(len(interval_costs[kind]) - 1, int((clipped_end - 1e-12) / decision_dt))
+        if first == last:
+            interval_costs[kind][first] += clipped_end - clipped_start
+            return
         for index in range(first, last + 1):
             overlap_start = max(clipped_start, index * decision_dt)
             overlap_end = min(clipped_end, (index + 1) * decision_dt)
@@ -338,10 +342,10 @@ def simulate(
         while queue:
             req_id, _arr = queue[0]
             if req_id in dropped_set:
-                queue.pop(0)
+                queue.popleft()
                 continue
             # Still valid — dispatch it
-            queue.pop(0)
+            queue.popleft()
             _dispatch_warm(req_id, inst, now)
             return True
         return False
@@ -633,6 +637,14 @@ def _complete_interval_records(
     """Add request outcomes and exact state cost to each decision interval."""
     n_intervals = int(math.ceil(cfg.duration_s / cfg.decision_interval_s))
     snapshots = {int(round(record.t / cfg.decision_interval_s)): record for record in intervals}
+    requests_by_interval: list[list[RequestRecord]] = [
+        [] for _ in range(n_intervals)
+    ]
+    for request in requests:
+        index = int(request.arrival_s / cfg.decision_interval_s)
+        if 0 <= index < n_intervals:
+            requests_by_interval[index].append(request)
+
     completed: list[IntervalRecord] = []
     for index in range(n_intervals):
         start = index * cfg.decision_interval_s
@@ -642,10 +654,7 @@ def _complete_interval_records(
         ready = snapshot.ready if snapshot else 0
         forecast = snapshot.forecast_rate if snapshot else None
         budget_clamped = snapshot.budget_clamped if snapshot else False
-        in_interval = [
-            request for request in requests
-            if start <= request.arrival_s < end
-        ]
+        in_interval = requests_by_interval[index]
         latencies = [
             request.latency_s for request in in_interval
             if not request.dropped and request.latency_s is not None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from warmlambda.core.forecaster import EWMAForecaster, SeasonalNaiveForecaster
@@ -16,6 +17,7 @@ def default_model_name() -> str:
     return "hgb_q90" if (MODEL_DIR / "hgb_q90.joblib").exists() else "ewma"
 
 
+@lru_cache(maxsize=8)
 def get_forecaster(name: str):
     """Return a named forecaster, loading trained models when required."""
     if name == "ewma":
