@@ -144,7 +144,7 @@ Run the automated simulation benchmark scripts directly from the repository root
    Output: `results/forecast_eval.csv`.
 
 3. **Train machine-learning forecasters**:
-   Builds a cached 288,000-row randomized dataset, trains HGB and (when
+   Builds a cached 288,000-row randomized dataset, trains Ridge and (when
    TensorFlow is installed) GRU models using seed-group validation:
    ```bash
    python -m experiments.train_forecasters

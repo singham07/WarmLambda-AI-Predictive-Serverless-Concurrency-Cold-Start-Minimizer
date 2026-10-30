@@ -137,7 +137,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Proactive safety margin multiplier above Little's Law (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(
@@ -146,7 +146,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Headroom margin multiplier on current concurrency (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(
@@ -155,7 +155,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Safety margin multiplier on both forecast and load (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained hgb_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
             },
         ),
         PolicyItem(

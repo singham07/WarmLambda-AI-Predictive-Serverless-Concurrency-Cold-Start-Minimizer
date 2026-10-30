@@ -13,54 +13,95 @@ from warmlambda.core.forecaster import Forecaster
 from warmlambda.core.ml_dataset import counts_to_features
 
 
-class HGBForecaster(Forecaster):
-    """Histogram gradient boosting regression forecaster."""
+class RidgeForecaster(Forecaster):
+    """Regularized linear forecaster with an optional calibrated quantile offset.
 
-    def __init__(self, quantile: Optional[float] = None, k: int = 60, window_s: float = 10.0) -> None:
+    The model uses the causal feature vector from ``ml_dataset`` and solves
+    ridge regression with NumPy. For a quantile model, the requested residual
+    quantile is added to the mean prediction and estimated on training data.
+    """
+
+    def __init__(self, quantile: Optional[float] = None, k: int = 60, window_s: float = 10.0, alpha: float = 1.0) -> None:
+        if quantile is not None and not 0.0 < quantile < 1.0:
+            raise ValueError(f"quantile must be between 0 and 1, got {quantile}")
+        if alpha <= 0.0:
+            raise ValueError(f"alpha must be positive, got {alpha}")
         self.quantile = quantile
         self.k = k
         self.window_s = window_s
-        self.name = "hgb_q90" if quantile == 0.9 else "hgb"
-        self.model: Any = None
+        self.alpha = float(alpha)
+        self.name = "ridge_q90" if quantile == 0.9 else "ridge"
+        self.coef_: Optional[np.ndarray] = None
+        self.feature_mean_: Optional[np.ndarray] = None
+        self.feature_scale_: Optional[np.ndarray] = None
+        self.intercept_: float = 0.0
+        self.residual_offset_: float = 0.0
 
-    def fit(self, X: np.ndarray, y: np.ndarray, groups: Optional[np.ndarray] = None) -> "HGBForecaster":
-        try:
-            from sklearn.ensemble import HistGradientBoostingRegressor
-        except ImportError as exc:
-            raise RuntimeError("HGBForecaster requires scikit-learn; install requirements.txt") from exc
-        kwargs: dict[str, Any] = {
-            "max_iter": 300,
-            "learning_rate": 0.08,
-            "max_leaf_nodes": 31,
-            "early_stopping": True,
-            "random_state": 0,
-        }
-        if self.quantile is not None:
-            kwargs.update({"loss": "quantile", "quantile": self.quantile})
-        self.model = HistGradientBoostingRegressor(**kwargs)
-        self.model.fit(X, y)
+    def fit(self, X: np.ndarray, y: np.ndarray, groups: Optional[np.ndarray] = None) -> "RidgeForecaster":
+        if X.ndim != 2 or y.ndim != 1 or len(X) != len(y):
+            raise ValueError("X must be 2-D, y must be 1-D, and they must have equal row counts")
+        self.feature_mean_ = np.asarray(X.mean(axis=0), dtype=np.float64)
+        scale = np.asarray(X.std(axis=0), dtype=np.float64)
+        self.feature_scale_ = np.where(scale > 1e-8, scale, 1.0)
+        scaled = (np.asarray(X, dtype=np.float64) - self.feature_mean_) / self.feature_scale_
+        target = np.asarray(y, dtype=np.float64)
+        design = np.column_stack((np.ones(len(scaled)), scaled))
+        penalty = np.eye(design.shape[1], dtype=np.float64)
+        penalty[0, 0] = 0.0
+        system = design.T @ design + self.alpha * penalty
+        solution = np.linalg.solve(system, design.T @ target)
+        self.intercept_ = float(solution[0])
+        self.coef_ = solution[1:]
+        residuals = target - self._predict_rows(np.asarray(X, dtype=np.float64))
+        self.residual_offset_ = float(np.quantile(residuals, self.quantile)) if self.quantile else 0.0
         return self
 
+    def _predict_rows(self, X: np.ndarray) -> np.ndarray:
+        if self.coef_ is None or self.feature_mean_ is None or self.feature_scale_ is None:
+            raise RuntimeError("RidgeForecaster must be fitted or loaded before prediction")
+        scaled = (X - self.feature_mean_) / self.feature_scale_
+        return self.intercept_ + scaled @ self.coef_ + self.residual_offset_
+
+    def predict_features(self, X: np.ndarray) -> np.ndarray:
+        """Predict a batch of already-built causal feature rows."""
+        return np.maximum(0.0, self._predict_rows(np.asarray(X, dtype=np.float64)))
+
     def predict(self, counts: list[int], window_s: float) -> float:
-        if self.model is None:
-            return 0.0
         features = counts_to_features(np.asarray(counts, dtype=np.float32), len(counts), self.k)
-        value = float(self.model.predict(features.reshape(1, -1))[0])
-        return max(0.0, value)
+        return float(self.predict_features(features.reshape(1, -1))[0])
 
     def save(self, path: str | Path) -> None:
-        try:
-            import joblib
-        except ImportError as exc:
-            raise RuntimeError("Saving HGB models requires joblib; install requirements.txt") from exc
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump(self, path)
+        np.savez_compressed(
+            path,
+            quantile=np.asarray(-1.0 if self.quantile is None else self.quantile),
+            k=np.asarray(self.k),
+            window_s=np.asarray(self.window_s),
+            alpha=np.asarray(self.alpha),
+            feature_mean=self.feature_mean_,
+            feature_scale=self.feature_scale_,
+            coef=self.coef_,
+            intercept=np.asarray(self.intercept_),
+            residual_offset=np.asarray(self.residual_offset_),
+        )
 
     @classmethod
-    def load(cls, path: str | Path) -> "HGBForecaster":
-        import joblib
-        return joblib.load(path)
+    def load(cls, path: str | Path) -> "RidgeForecaster":
+        data = np.load(path, allow_pickle=False)
+        quantile_value = float(data["quantile"])
+        instance = cls(
+            quantile=None if quantile_value < 0 else quantile_value,
+            k=int(data["k"]),
+            window_s=float(data["window_s"]),
+            alpha=float(data["alpha"]),
+        )
+        instance.feature_mean_ = data["feature_mean"]
+        instance.feature_scale_ = data["feature_scale"]
+        instance.coef_ = data["coef"]
+        instance.intercept_ = float(data["intercept"])
+        instance.residual_offset_ = float(data["residual_offset"])
+        return instance
 
 
 class GRUForecaster(Forecaster):

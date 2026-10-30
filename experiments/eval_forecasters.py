@@ -16,17 +16,17 @@ from warmlambda.core.forecaster import (
 )
 from warmlambda.core.forecaster_registry import get_forecaster
 from warmlambda.core.ml_dataset import counts_to_features
-from warmlambda.core.ml_forecaster import GRUForecaster, HGBForecaster
+from warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster
 from warmlambda.core.traffic import SCENARIOS, generate_trace
 
 
 def _score(forecaster, counts: list[int], window_s: float, q90: bool = False) -> dict[str, float]:
     actual = np.asarray(counts[1:], dtype=float) / window_s
-    if isinstance(forecaster, HGBForecaster):
+    if isinstance(forecaster, RidgeForecaster):
         features = np.asarray(
             [counts_to_features(np.asarray(counts, dtype=np.float32), index, forecaster.k) for index in range(1, len(counts))]
         )
-        predictions = np.maximum(0.0, forecaster.model.predict(features))
+        predictions = forecaster.predict_features(features)
     elif isinstance(forecaster, GRUForecaster):
         features = np.asarray(
             [counts_to_features(np.asarray(counts, dtype=np.float32), index, forecaster.k)[:forecaster.k] for index in range(1, len(counts))]
@@ -66,7 +66,7 @@ def main() -> None:
         "ewma_trend": lambda: EWMAForecaster(alpha=0.4, trend=True, beta=0.2),
         "seasonal": lambda: SeasonalNaiveForecaster(period_windows=60),
     }
-    for name in ("hgb", "hgb_q90", "gru"):
+    for name in ("ridge", "ridge_q90", "gru"):
         try:
             model_factories[name] = lambda name=name: get_forecaster(name)
         except Exception:
@@ -90,7 +90,7 @@ def main() -> None:
                 trace = generate_trace(scenario, cfg, seed, randomize=randomize)
                 counts = bin_trace_to_windows(trace, cfg.duration_s, window_s)
                 for name, model in available_models.items():
-                    metrics = _score(model, counts, window_s, q90=name == "hgb_q90")
+                    metrics = _score(model, counts, window_s, q90=name == "ridge_q90")
                     rows.append({"dataset": dataset, "scenario": scenario, "seed": seed, "forecaster": name, **metrics})
 
     fieldnames = ["dataset", "scenario", "seed", "forecaster", "mae", "smape", "under_prediction_rate", "pinball_loss"]

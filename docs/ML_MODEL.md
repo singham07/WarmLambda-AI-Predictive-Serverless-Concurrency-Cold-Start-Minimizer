@@ -15,10 +15,11 @@ can scale to millions of rows by supplying more seeds.
 
 ## Models and leakage controls
 
-`HGBForecaster` uses scikit-learn histogram gradient boosting and supports both
-mean regression and a 0.9 quantile model (`hgb_q90`). `GRUForecaster` uses the
-TensorFlow/Keras stack with a 64-unit GRU. Every model's runtime
-`predict` method constructs features from the supplied history only.
+`RidgeForecaster` uses standardized causal features and NumPy ridge regression.
+The `ridge_q90` variant adds the 90th percentile of training residuals to
+produce a conservative capacity forecast. `GRUForecaster` remains an optional
+TensorFlow/Keras model. Every model's runtime `predict` method constructs
+features from the supplied history only.
 
 Training and validation are split by complete seed groups: no seed appears in
 both side of the split. Evaluation uses standard seeds 0--19 without
@@ -38,25 +39,11 @@ under-prediction rate, and q90 pinball loss per scenario and dataset.
 ## Results and honest interpretation
 
 The authoritative results are the table printed by the evaluation command and
-the accompanying CSV; they must be regenerated after changing dependencies or
-training data. ML is useful when randomized traces contain repeatable
-multi-window structure that the feature set can learn. On scenarios where the
-rate is smooth or weakly predictable, EWMA can match or beat ML while being
-cheaper, easier to inspect, and available without a model file. The project
-does not claim ML superiority unless the printed table demonstrates it on the
-relevant test distribution.
-
-The following values are from the evaluated run in this repository (MAE in
-requests/second; standard test set):
-
-| Scenario | EWMA | HGB | HGB q90 | EWMA trend |
-|---|---:|---:|---:|---:|
-| moderate | 0.5018 | 0.5726 | 0.9175 | 0.5391 |
-| high_load | 1.5391 | 1.5439 | 2.8153 | 1.6687 |
-| extreme | 1.9831 | 1.2447 | 2.2767 | 2.2174 |
-| periodic | 0.7686 | 0.7612 | 1.3071 | 0.7175 |
-
-This table shows the honest conclusion: HGB helps materially on extreme
-spikes, while EWMA matches or beats it on moderate, high-load, and periodic
-traffic. The q90 model is intentionally conservative and should be judged by
-its under-prediction rate and pinball loss rather than ordinary MAE alone.
+the accompanying CSV; they must be regenerated after changing training data.
+Accuracy is judged on unseen complete seed groups, never on training rows.
+Compare `ridge` and `ridge_q90` against EWMA using MAE and sMAPE, and inspect
+under-prediction rate and pinball loss for `ridge_q90`. A lower forecast error
+does not automatically mean a better capacity policy: also compare cold
+starts, queue timeouts, and cost in the simulation results. The project does
+not claim model superiority unless held-out metrics demonstrate it for the
+target traffic distribution.

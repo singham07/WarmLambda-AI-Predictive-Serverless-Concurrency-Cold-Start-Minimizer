@@ -11,13 +11,13 @@ import numpy as np
 
 from warmlambda.core.config import SimConfig
 from warmlambda.core.ml_dataset import build_dataset
-from warmlambda.core.ml_forecaster import GRUForecaster, HGBForecaster
+from warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster
 
 
 def _mae(model, X: np.ndarray, y: np.ndarray) -> float:
     sample = X[:20000]
-    if isinstance(model, HGBForecaster):
-        predictions = np.maximum(0.0, model.model.predict(sample))
+    if isinstance(model, RidgeForecaster):
+        predictions = model.predict_features(sample)
     else:
         predictions = np.maximum(
             0.0,
@@ -46,8 +46,8 @@ def main() -> None:
     model_dir.mkdir(exist_ok=True)
     results: dict[str, float | str] = {}
     for name, model, filename in (
-        ("hgb", HGBForecaster(k=60, window_s=10.0), "hgb.joblib"),
-        ("hgb_q90", HGBForecaster(quantile=0.9, k=60, window_s=10.0), "hgb_q90.joblib"),
+        ("ridge", RidgeForecaster(k=60, window_s=10.0), "ridge.npz"),
+        ("ridge_q90", RidgeForecaster(quantile=0.9, k=60, window_s=10.0), "ridge_q90.npz"),
     ):
         fit_start = time.perf_counter()
         model.fit(X[train_mask], y[train_mask], groups[train_mask])
@@ -74,7 +74,7 @@ def main() -> None:
         "validation_metrics": results,
         "training_time_s": time.perf_counter() - started,
         "library_versions": {
-            name: _version(name) for name in ("numpy", "pandas", "scikit-learn", "joblib", "tensorflow")
+            name: _version(name) for name in ("numpy", "pandas", "tensorflow")
         },
     }
     (model_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")

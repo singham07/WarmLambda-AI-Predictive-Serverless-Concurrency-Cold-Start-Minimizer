@@ -59,7 +59,7 @@ class RunRequest(BaseModel):
     fixed_n: Optional[int] = Field(default=None, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
-    model: str = Field(default_factory=default_model_name, description="Forecaster: ewma, seasonal, hgb, hgb_q90, or gru")
+    model: str = Field(default_factory=default_model_name, description="Forecaster: ewma, seasonal, ridge, ridge_q90, or gru")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides

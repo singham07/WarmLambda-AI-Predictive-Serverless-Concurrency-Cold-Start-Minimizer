@@ -235,10 +235,10 @@ function Controls({ state, setState, onRun, loading, error, description }) {
             <label>Fixed instances<input type="number" min="0" value={state.fixedN} onChange={(event) => update("fixedN", Number(event.target.value))} /></label>
             <label className="wide">Forecast model
               <select value={state.model} onChange={(event) => update("model", event.target.value)}>
-                <option value="hgb_q90">HGB q90 (trained)</option>
+                <option value="ridge_q90">Ridge q90 (trained)</option>
                 <option value="ewma">EWMA (no training)</option>
                 <option value="seasonal">Seasonal</option>
-                <option value="hgb">HGB (trained)</option>
+                <option value="ridge">Ridge (trained)</option>
                 <option value="gru">GRU (trained)</option>
               </select>
             </label>
@@ -565,7 +565,7 @@ function CompareTab({ result }) {
 
 export default function Dashboard() {
   const [descriptions, setDescriptions] = useState({});
-  const [state, setState] = useState({ scenario: "extreme", duration: 3600, policies: PRIMARY_STRATEGIES, seed: 42, initTime: 1, meanExec: 0.2, headroom: 0.5, warmBudget: "", fixedN: 5, model: "hgb_q90" });
+  const [state, setState] = useState({ scenario: "extreme", duration: 3600, policies: PRIMARY_STRATEGIES, seed: 42, initTime: 1, meanExec: 0.2, headroom: 0.5, warmBudget: "", fixedN: 5, model: "ewma" });
   const [result, setResult] = useState(null);
   const [runInfo, setRunInfo] = useState(null);
   const [tab, setTab] = useState("summary");

@@ -417,16 +417,14 @@
     1199
   ],
   "validation_metrics": {
-    "hgb": 1.830813579854356,
-    "hgb_q90": 2.558190333781758,
+    "ridge": null,
+    "ridge_q90": null,
     "gru": 2.0257768630981445
   },
   "training_time_s": 1356.5104249000142,
   "library_versions": {
     "numpy": "2.5.4",
     "pandas": "3.0.6",
-    "scikit-learn": "1.9.1",
-    "joblib": "1.6.0",
     "tensorflow": "not installed"
   }
 }
