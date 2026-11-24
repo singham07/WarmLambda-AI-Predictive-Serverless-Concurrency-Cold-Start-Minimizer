@@ -16,12 +16,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import EWMAForecaster
-from warmlambda.core.metrics import compute_metrics, metrics_to_row
-from warmlambda.core.policies.warmlambda import WarmLambdaPolicy
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import SCENARIOS, generate_trace
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import EWMAForecaster
+from backend.warmlambda.core.metrics import compute_metrics, metrics_to_row
+from backend.warmlambda.core.policies.warmlambda import WarmLambdaPolicy
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import SCENARIOS, generate_trace
 
 
 def _format_table(header: list[str], rows: list[list[str]]) -> str:

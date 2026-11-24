@@ -81,7 +81,7 @@ cd ..
 Start the FastAPI application with `uvicorn`:
 
 ```bash
-uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn backend.api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 The API will be accessible at `http://localhost:8000`.
@@ -203,10 +203,14 @@ The test suite validates:
 
 ```
 warmlambda/
-├── api/                       # FastAPI web backend
-│   ├── main.py                # REST endpoints, CORS, exception handlers
-│   ├── schemas.py             # Pydantic request and response schemas
-│   └── services.py            # Simulation runner, downsampling, summary aggregation
+├── backend/                   # Python backend
+│   ├── api/                   # FastAPI web backend
+│   │   ├── main.py            # REST endpoints, CORS, exception handlers
+│   │   ├── schemas.py         # Pydantic request and response schemas
+│   │   └── services.py        # Simulation runner, downsampling, summary aggregation
+│   └── warmlambda/            # Core simulation and forecasting package
+│       └── core/              # Simulation, policies, metrics, and forecasters
+├── models/                    # Trained model artifacts and metadata
 ├── docs/                      # Technical documentation
 │   ├── ASSUMPTIONS.md         # Simulation parameters, defaults, and scenario mappings
 │   ├── LIMITATIONS.md         # Differences from real AWS Lambda and explicit non-claims
@@ -243,15 +247,6 @@ warmlambda/
 │   ├── test_policies.py       # Fixed, reactive, and oracle policy logic
 │   ├── test_simulator.py      # Discrete-event engine and queue state transitions
 │   └── test_traffic.py        # NHPP thinning algorithm and reproducibility
-├── warmlambda/                # Core Python package
-│   └── core/
-│       ├── capacity.py        # Little's Law capacity mapping
-│       ├── config.py          # SimConfig immutable configuration dataclass
-│       ├── forecaster.py      # EWMA, Holt's linear, and Seasonal Naive models
-│       ├── metrics.py         # Summary metrics computation
-│       ├── simulator.py       # Discrete-event simulation engine
-│       ├── traffic.py         # Thinning NHPP traffic generators and scenarios
-│       └── policies/          # Policy implementations
 ├── LAUNCH.md                  # Pre-launch verification checklist
 ├── pytest.ini                 # Pytest configuration
 ├── requirements.txt           # Python dependency specifications

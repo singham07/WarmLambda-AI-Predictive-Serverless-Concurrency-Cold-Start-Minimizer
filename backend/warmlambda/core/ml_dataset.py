@@ -10,9 +10,9 @@ from typing import Any, Iterable
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import bin_trace_to_windows
-from warmlambda.core.traffic import generate_trace
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import bin_trace_to_windows
+from backend.warmlambda.core.traffic import generate_trace
 
 
 def feature_names(k: int = 60) -> list[str]:

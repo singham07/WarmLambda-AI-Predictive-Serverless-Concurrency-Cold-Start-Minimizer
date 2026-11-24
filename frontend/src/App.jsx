@@ -19,18 +19,18 @@ function BrandMark() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/static">
       <header className="site-header">
         <div className="header-inner">
           <Link to="/" className="brand">
             <BrandMark />
-            WarmLambda AI
+            <span>WarmLambda <b>AI</b></span>
           </Link>
           <nav className="site-nav" aria-label="Primary navigation">
             <NavLink to="/" end>Simulator</NavLink>
             <NavLink to="/experiment-results">Experiment results</NavLink>
           </nav>
-          <span className="sim-note">Simulated estimates, not real AWS measurements or costs</span>
+          <span className="sim-note"><i />Simulation environment / estimates only</span>
         </div>
       </header>
 
@@ -49,7 +49,6 @@ export default function App() {
           <Link to="/privacy">Privacy Policy</Link>
           <Link to="/terms">Terms and Conditions</Link>
         </div>
-        <span>College project, GLA University.</span>
       </footer>
     </BrowserRouter>
   );

@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import math
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
-from warmlambda.core.traffic import Request
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.traffic import Request
 
 
 class Oracle(Policy):

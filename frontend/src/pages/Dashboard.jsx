@@ -237,11 +237,19 @@ function Controls({ state, setState, onRun, loading, error, description }) {
               <select value={state.model} onChange={(event) => update("model", event.target.value)}>
                 <option value="ridge_q90">Ridge q90 (trained)</option>
                 <option value="ewma">EWMA (no training)</option>
+                <option value="ewma_xgboost">EWMA + XGBoost (weighted)</option>
+                <option value="xgboost">XGBoost (trained)</option>
                 <option value="seasonal">Seasonal</option>
                 <option value="ridge">Ridge (trained)</option>
                 <option value="gru">GRU (trained)</option>
               </select>
             </label>
+            {state.model === "ewma_xgboost" && (
+              <label className="wide">XGBoost weight
+                <input type="number" min="0" max="1" step="0.1" value={state.xgboostWeight} onChange={(event) => update("xgboostWeight", Number(event.target.value))} />
+                <span className="field-help">EWMA weight: {(1 - state.xgboostWeight).toFixed(1)} / XGBoost weight: {state.xgboostWeight.toFixed(1)}</span>
+              </label>
+            )}
           </div>
         </details>
       </div>
@@ -565,7 +573,7 @@ function CompareTab({ result }) {
 
 export default function Dashboard() {
   const [descriptions, setDescriptions] = useState({});
-  const [state, setState] = useState({ scenario: "extreme", duration: 3600, policies: PRIMARY_STRATEGIES, seed: 42, initTime: 1, meanExec: 0.2, headroom: 0.5, warmBudget: "", fixedN: 5, model: "ewma" });
+  const [state, setState] = useState({ scenario: "extreme", duration: 3600, policies: PRIMARY_STRATEGIES, seed: 42, initTime: 1, meanExec: 0.2, headroom: 0.5, warmBudget: "", fixedN: 5, model: "ewma", xgboostWeight: 0.5 });
   const [result, setResult] = useState(null);
   const [runInfo, setRunInfo] = useState(null);
   const [tab, setTab] = useState("summary");
@@ -598,12 +606,13 @@ export default function Dashboard() {
           warm_budget: state.warmBudget === "" ? null : Number(state.warmBudget),
           fixed_n: state.fixedN,
           model: state.model,
+          xgboost_weight: state.xgboostWeight,
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail?.[0]?.msg || data.detail || "The simulation could not be completed.");
       setResult(data.results);
-      setRunInfo({ scenario: state.scenario, duration: state.duration, seed: state.seed, model: state.model, meanExec: state.meanExec, policies: state.policies });
+      setRunInfo({ scenario: state.scenario, duration: state.duration, seed: state.seed, model: state.model, xgboostWeight: state.xgboostWeight, meanExec: state.meanExec, policies: state.policies });
       setTab("summary");
     } catch (runError) {
       setError(runError.message);
@@ -616,9 +625,18 @@ export default function Dashboard() {
   const info = useMemo(() => runInfo, [runInfo]);
 
   return (
-    <div className="workbench">
-      <Controls state={state} setState={setState} onRun={run} loading={loading} error={error} description={descriptions[state.scenario] || ""} />
-      <div className="results-shell">
+    <>
+      <section className="workspace-heading">
+        <div>
+          <p className="eyebrow">Warm capacity laboratory / run configuration</p>
+          <h1>Serverless concurrency simulator</h1>
+          <p>Replay traffic against competing warm-capacity policies and inspect the resulting execution profile.</p>
+        </div>
+        <div className="workspace-status"><span />READY FOR INPUT</div>
+      </section>
+      <div className="workbench">
+        <Controls state={state} setState={setState} onRun={run} loading={loading} error={error} description={descriptions[state.scenario] || ""} />
+        <div className="results-shell">
         {loading && <div className="loading-line" role="status" aria-label="Running simulation" />}
         {!result && <EmptyState />}
         {result && selectedResult && info && (
@@ -642,7 +660,8 @@ export default function Dashboard() {
             {tab === "compare" && <CompareTab result={result} />}
           </>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

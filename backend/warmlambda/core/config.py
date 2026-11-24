@@ -9,7 +9,7 @@ object can be safely shared across threads and used as a dict key.
 
 Example
 -------
->>> from warmlambda.core.config import SimConfig
+>>> from backend.warmlambda.core.config import SimConfig
 >>> cfg = SimConfig(duration_s=7200, max_instances=50)
 >>> cfg.duration_s
 7200
@@ -35,10 +35,10 @@ class SimConfig:
         start) but not negative.  Default: ``1.0``.
     mean_exec_s : float
         Mean execution time of a single function invocation in **seconds**,
-        used as the μ parameter of the log-normal execution-time distribution.
+        used as the Î¼ parameter of the log-normal execution-time distribution.
         Must be > 0.  Default: ``0.2``.
     exec_sigma : float
-        Standard deviation (σ) of the log-normal execution-time distribution,
+        Standard deviation (Ïƒ) of the log-normal execution-time distribution,
         in **seconds**.  Controls how bursty individual invocations are.
         Must be > 0.  Default: ``0.5``.
     idle_timeout_s : float
@@ -86,10 +86,10 @@ class SimConfig:
     """Cold-start initialisation latency in seconds (>= 0)."""
 
     mean_exec_s: float = 0.2
-    """Mean invocation execution time in seconds (log-normal μ)."""
+    """Mean invocation execution time in seconds (log-normal Î¼)."""
 
     exec_sigma: float = 0.5
-    """Std-dev of invocation execution time in seconds (log-normal σ)."""
+    """Std-dev of invocation execution time in seconds (log-normal Ïƒ)."""
 
     # ------------------------------------------------------------------ #
     # Instance lifecycle                                                   #

@@ -14,19 +14,19 @@ from typing import Any, Optional
 import pandas as pd
 from fastapi import HTTPException
 
-from api.schemas import CapacityPlanPoint, CompareRequest, IntervalPoint, RunRequest
-from warmlambda.core.capacity import capacity_from_rate
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import EWMAForecaster
-from warmlambda.core.forecaster_registry import get_forecaster
-from warmlambda.core.metrics import compute_metrics
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
-from warmlambda.core.policies.fixed import FixedWarming
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.policies.oracle import Oracle
-from warmlambda.core.policies.reactive import Reactive
-from warmlambda.core.simulator import SimResult, simulate
-from warmlambda.core.traffic import Request, generate_trace
+from backend.api.schemas import CapacityPlanPoint, CompareRequest, IntervalPoint, RunRequest
+from backend.warmlambda.core.capacity import capacity_from_rate
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import EWMAForecaster
+from backend.warmlambda.core.forecaster_registry import get_forecaster
+from backend.warmlambda.core.metrics import compute_metrics
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.fixed import FixedWarming
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.policies.oracle import Oracle
+from backend.warmlambda.core.policies.reactive import Reactive
+from backend.warmlambda.core.simulator import SimResult, simulate
+from backend.warmlambda.core.traffic import Request, generate_trace
 
 
 class WarmLambdaHybridPolicy(Policy):
@@ -45,13 +45,14 @@ class WarmLambdaHybridPolicy(Policy):
         headroom: float = 0.5,
         warm_budget: Optional[int] = None,
         model: str = "ewma",
+        xgboost_weight: float = 0.5,
     ) -> None:
         self.mode = mode
         self.cfg = cfg
         self.headroom = float(headroom)
         self.warm_budget = warm_budget
         self.name = mode
-        self.forecaster = get_forecaster(model)
+        self.forecaster = get_forecaster(model, xgboost_weight)
         self.last_forecast_rate: Optional[float] = None
         self.last_budget_clamped = False
         self.forecast_history: dict[float, float] = {}
@@ -122,6 +123,7 @@ def instantiate_policy(
     headroom: float = 0.5,
     warm_budget: Optional[int] = None,
     model: str = "ewma",
+    xgboost_weight: float = 0.5,
 ) -> tuple[Policy, Optional[dict[float, float]]]:
     """Create a policy instance and optionally return its forecast tracker."""
     forecast_tracker: Optional[dict[float, float]] = None
@@ -140,6 +142,7 @@ def instantiate_policy(
             headroom=headroom,
             warm_budget=warm_budget,
             model=model,
+            xgboost_weight=xgboost_weight,
         )
         forecast_tracker = p.forecast_history
         policy = p
@@ -267,6 +270,7 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         headroom=req.headroom,
         warm_budget=req.warm_budget,
         model=req.model,
+        xgboost_weight=req.xgboost_weight,
     )
 
     result = simulate(trace, policy, cfg)
@@ -320,6 +324,7 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
             headroom=req.headroom,
             warm_budget=req.warm_budget,
             model=req.model,
+            xgboost_weight=req.xgboost_weight,
         )
 
         result = simulate(trace, policy, cfg)
@@ -351,7 +356,7 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
 
 def get_results_summary() -> dict[str, Any]:
     """Aggregate results/final_metrics.csv by scenario and policy (mean, std)."""
-    csv_path = Path(__file__).resolve().parents[1] / "results" / "final_metrics.csv"
+    csv_path = Path(__file__).resolve().parents[2] / "results" / "final_metrics.csv"
     if not csv_path.exists():
         raise HTTPException(
             status_code=404,

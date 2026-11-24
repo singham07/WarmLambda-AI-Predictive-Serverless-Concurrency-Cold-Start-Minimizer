@@ -19,7 +19,7 @@
   --green-soft: #17301f;
   --red: #e5645f;
   --red-soft: #3a1b1a;
-  --radius: 4px;
+  --radius: 2px;
   --sans: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -45,26 +45,32 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* ---------- Header ---------- */
-.site-header { background: var(--header); border-bottom: 1px solid var(--line); }
-.header-inner { align-items: center; display: flex; gap: 32px; margin: 0 auto; max-width: 1480px; min-height: 60px; padding: 0 28px; }
-.brand { align-items: center; color: var(--text); display: flex; font-size: 17px; font-weight: 600; gap: 10px; letter-spacing: 0.01em; text-decoration: none; }
+.site-header { background: var(--header); border-bottom: 1px solid var(--line-strong); box-shadow: 0 5px 18px rgba(0,0,0,.2); }
+.header-inner { align-items: center; display: flex; gap: 32px; margin: 0 auto; max-width: 1480px; min-height: 64px; padding: 0 28px; }
+.brand { align-items: center; color: var(--text); display: flex; font-size: 16px; font-weight: 600; gap: 10px; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase; }
+.brand b { color: var(--amber); font-weight: 500; }
 .brand-mark { flex: 0 0 auto; height: 26px; width: 26px; }
 .site-nav { align-self: stretch; display: flex; gap: 4px; }
 .site-nav a { align-items: center; border-bottom: 2px solid transparent; color: var(--muted); display: flex; font-size: 14px; font-weight: 500; padding: 0 14px; text-decoration: none; }
 .site-nav a:hover { color: var(--text); }
 .site-nav a.active { border-bottom-color: var(--amber); color: var(--text); }
-.sim-note { align-items: center; color: var(--muted); display: flex; font-family: var(--mono); font-size: 12px; gap: 8px; margin-left: auto; }
-.sim-note::before { background: var(--amber); content: ""; display: block; height: 7px; width: 7px; }
+.sim-note { align-items: center; color: var(--muted); display: flex; font-family: var(--mono); font-size: 10px; gap: 8px; letter-spacing: .06em; margin-left: auto; text-transform: uppercase; }
+.sim-note i { background: var(--amber); display: block; height: 6px; width: 6px; }
 
 /* ---------- Page frame ---------- */
-.main-content { flex: 1; margin: 0 auto; max-width: 1480px; padding: 24px 28px 48px; width: 100%; }
+.main-content { flex: 1; margin: 0 auto; max-width: 1480px; padding: 30px 28px 56px; width: 100%; }
 .site-footer { align-items: center; border-top: 1px solid var(--line); color: var(--dim); display: flex; font-size: 13px; justify-content: space-between; padding: 18px 28px; }
 .site-footer div { display: flex; gap: 20px; }
 .site-footer a { color: var(--muted); }
 
 /* ---------- Workbench ---------- */
-.workbench { align-items: start; display: grid; gap: 24px; grid-template-columns: 316px minmax(0, 1fr); }
-.controls { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); position: sticky; top: 16px; }
+.workspace-heading { align-items: end; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; margin-bottom: 24px; padding-bottom: 22px; }
+.workspace-heading h1 { font-size: clamp(24px, 3vw, 34px); font-weight: 500; letter-spacing: -.03em; margin: 0; }
+.workspace-heading p:not(.eyebrow) { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+.workspace-status { color: var(--green); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
+.workspace-status span { background: var(--green); display: inline-block; height: 6px; margin-right: 8px; width: 6px; }
+.workbench { align-items: start; display: grid; gap: 22px; grid-template-columns: 316px minmax(0, 1fr); }
+.controls { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 24px rgba(0,0,0,.12); position: sticky; top: 16px; }
 .controls-section { border-bottom: 1px solid var(--line); padding: 18px 18px 16px; }
 .controls-section:last-of-type { border-bottom: 0; }
 .eyebrow { color: var(--dim); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; margin: 0 0 12px; text-transform: uppercase; }
@@ -111,8 +117,8 @@ details > summary:hover { color: var(--text); }
 .button { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); cursor: pointer; font-size: 13.5px; font-weight: 500; padding: 8px 14px; }
 .button:hover:not(:disabled) { background: var(--surface-3); border-color: var(--dim); }
 .button:disabled { cursor: not-allowed; opacity: 0.45; }
-.primary-button { background: var(--blue-strong); border-color: var(--blue); color: #fff; font-size: 14.5px; min-height: 44px; width: 100%; }
-.primary-button:hover:not(:disabled) { background: var(--blue); border-color: #6aa8e6; }
+.primary-button { background: var(--amber); border-color: #ffb95a; color: #0a0e12; font-size: 13.5px; font-weight: 600; letter-spacing: .02em; min-height: 44px; text-transform: uppercase; width: 100%; }
+.primary-button:hover:not(:disabled) { background: #ffb95a; border-color: #ffd18b; }
 .run-bar { background: var(--surface); border-top: 1px solid var(--line); padding: 14px 18px 18px; }
 .error-box { background: var(--red-soft); border: 1px solid #7a3532; border-radius: var(--radius); color: #f1a6a3; font-size: 13px; margin-bottom: 12px; padding: 9px 11px; }
 
@@ -129,7 +135,7 @@ details > summary:hover { color: var(--text); }
 .tab.active { border-bottom-color: var(--amber); color: var(--text); }
 .tab-content { display: flex; flex-direction: column; gap: 20px; }
 
-.card, .empty-state { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.card, .empty-state { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
 .card-head { align-items: baseline; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 14px; }
 .card h2, .card-title { font-size: 15px; font-weight: 600; margin: 0; }
 .card-sub { color: var(--muted); font-size: 13px; margin: 3px 0 0; }

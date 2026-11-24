@@ -18,13 +18,12 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api/ ./api/
-COPY warmlambda/ ./warmlambda/
+COPY backend/ ./backend/
 COPY models/ ./models/
 COPY results/ ./results/
 COPY data/ ./data/
-COPY --from=frontend-build /app/frontend/dist/ ./api/static/
+COPY --from=frontend-build /app/frontend/dist/ ./backend/api/static/
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT}"]

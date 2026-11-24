@@ -14,22 +14,22 @@ an instantaneous arrival rate in **requests per second**.
 
 Scenarios
 ---------
-moderate   – base 3 req/s ± 30 % sine wave, period 1200 s
-high_load  – base 30 req/s, linear ramp 0.6× → 1.4× over the simulation
-extreme    – base 2 req/s + 3-6 random spikes of 15× lasting 30-120 s each
-periodic   – base 5 req/s with 60 % sine amplitude, period 600 s
+moderate   â€“ base 3 req/s Â± 30 % sine wave, period 1200 s
+high_load  â€“ base 30 req/s, linear ramp 0.6Ã— â†’ 1.4Ã— over the simulation
+extreme    â€“ base 2 req/s + 3-6 random spikes of 15Ã— lasting 30-120 s each
+periodic   â€“ base 5 req/s with 60 % sine amplitude, period 600 s
 
 Thinning method
 ---------------
 Lewis-Shedler thinning algorithm: generate a homogeneous Poisson process at
-``λ_max`` (numerically determined), then independently accept each candidate
-event with probability ``rate(t) / λ_max``.
+``Î»_max`` (numerically determined), then independently accept each candidate
+event with probability ``rate(t) / Î»_max``.
 
 Execution times
 ---------------
 Drawn from a log-normal distribution whose *mean* equals ``cfg.mean_exec_s``::
 
-    μ_ln = log(mean) − σ²/2   →   E[X] = exp(μ_ln + σ²/2) = mean  ✓
+    Î¼_ln = log(mean) âˆ’ ÏƒÂ²/2   â†’   E[X] = exp(Î¼_ln + ÏƒÂ²/2) = mean  âœ“
 
 Reproducibility
 ---------------
@@ -47,7 +47,7 @@ from typing import Callable
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
+from backend.warmlambda.core.config import SimConfig
 
 # Public type alias
 RateFn = Callable[[float], float]
@@ -83,11 +83,11 @@ class Request:
 
 
 def _make_moderate(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
-    """Base 3 req/s with ±30 % sine modulation, period 1200 s.
+    """Base 3 req/s with Â±30 % sine modulation, period 1200 s.
 
-    rate(t) = 3 · (1 + 0.30 · sin(2π·t / 1200))
+    rate(t) = 3 Â· (1 + 0.30 Â· sin(2Ï€Â·t / 1200))
 
-    Maximum rate: 3.0 × 1.30 = 3.90 req/s
+    Maximum rate: 3.0 Ã— 1.30 = 3.90 req/s
     Expected total over 3600 s: 10 800 requests (sine averages to zero).
     """
     if randomize:
@@ -106,11 +106,11 @@ def _make_moderate(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn
 
 
 def _make_high_load(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
-    """Base 30 req/s with a linear ramp: 0.6× at t=0 → 1.4× at t=duration_s.
+    """Base 30 req/s with a linear ramp: 0.6Ã— at t=0 â†’ 1.4Ã— at t=duration_s.
 
-    rate(t) = 30 · (0.6 + 0.8 · t / duration_s)
+    rate(t) = 30 Â· (0.6 + 0.8 Â· t / duration_s)
 
-    Maximum rate: 30 × 1.4 = 42.0 req/s
+    Maximum rate: 30 Ã— 1.4 = 42.0 req/s
     Expected total over 3600 s: 108 000 requests.
     """
     if randomize:
@@ -130,13 +130,13 @@ def _make_high_load(cfg: SimConfig, seed: int, randomize: bool = False) -> RateF
 
 
 def _make_extreme(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
-    """Base 2 req/s plus 3-6 non-overlapping spikes of 15× lasting 30-120 s.
+    """Base 2 req/s plus 3-6 non-overlapping spikes of 15Ã— lasting 30-120 s.
 
     Spike timing is determined by *seed* so results are fully reproducible.
     Spikes are guaranteed not to overlap: remaining slack is distributed as
     inter-spike gaps using a Dirichlet split.
 
-    Maximum rate during a spike: 2 × 15 = 30 req/s.
+    Maximum rate during a spike: 2 Ã— 15 = 30 req/s.
     """
     parameter_rng = np.random.default_rng([seed, 12])
     out_of_range = randomize and seed >= 2000
@@ -190,9 +190,9 @@ def _make_extreme(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
 def _make_periodic(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn:
     """Base 5 req/s with 60 % sine amplitude, period 600 s.
 
-    rate(t) = 5 · (1 + 0.60 · sin(2π·t / 600))
+    rate(t) = 5 Â· (1 + 0.60 Â· sin(2Ï€Â·t / 600))
 
-    Maximum rate: 5.0 × 1.60 = 8.0 req/s.
+    Maximum rate: 5.0 Ã— 1.60 = 8.0 req/s.
     The repeating 600 s pattern completes 6 full cycles in a 3600 s simulation.
     """
     if randomize:
@@ -232,7 +232,7 @@ def get_max_rate(
 
     Evaluates the rate function on a uniform grid of *n_points* and returns
     the maximum value.  Used internally by :func:`generate_trace` as
-    ``λ_max`` for the thinning algorithm, and exposed for callers that need
+    ``Î»_max`` for the thinning algorithm, and exposed for callers that need
     an upper-bound estimate (e.g. capacity-planning scripts).
 
     Parameters
@@ -244,7 +244,7 @@ def get_max_rate(
     seed : int
         Passed to the rate-function factory (only matters for ``extreme``).
     n_points : int
-        Grid resolution.  Higher values give a tighter ``λ_max`` bound.
+        Grid resolution.  Higher values give a tighter ``Î»_max`` bound.
 
     Returns
     -------
@@ -281,14 +281,14 @@ def generate_trace(
 
     Uses the Lewis-Shedler *thinning* method:
 
-    1. Compute ``λ_max = max rate × 1.01`` (1 % safety margin) on a 10 000-
+    1. Compute ``Î»_max = max rate Ã— 1.01`` (1 % safety margin) on a 10 000-
        point grid.
-    2. Generate inter-arrival times from ``Exponential(λ_max)`` to build a
+    2. Generate inter-arrival times from ``Exponential(Î»_max)`` to build a
        homogeneous Poisson proposal process.
     3. Accept each candidate at time *t* independently with probability
-       ``rate(t) / λ_max``.
-    4. Draw execution durations from ``LogNormal(μ_ln, σ)`` where
-       ``μ_ln = log(mean) − σ²/2`` guarantees ``E[exec_s] = cfg.mean_exec_s``.
+       ``rate(t) / Î»_max``.
+    4. Draw execution durations from ``LogNormal(Î¼_ln, Ïƒ)`` where
+       ``Î¼_ln = log(mean) âˆ’ ÏƒÂ²/2`` guarantees ``E[exec_s] = cfg.mean_exec_s``.
 
     All randomness is seeded with ``[seed, 0]`` for thinning and ``[seed, 1]``
     for spike placement (extreme scenario), ensuring full reproducibility.
@@ -300,7 +300,7 @@ def generate_trace(
     cfg : SimConfig
         Simulation configuration.
     seed : int
-        Master random seed.  Same ``(scenario, cfg, seed)`` → identical trace.
+        Master random seed.  Same ``(scenario, cfg, seed)`` â†’ identical trace.
 
     Returns
     -------

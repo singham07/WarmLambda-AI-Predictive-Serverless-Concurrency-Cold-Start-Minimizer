@@ -9,7 +9,7 @@ This document enumerates the core modeling assumptions, parameter values, and de
 
 ## 1. Summary of Simulation Parameters
 
-The table below maps all configurable simulation parameters from `SimConfig` ([warmlambda/core/config.py](file:///c:/warmlambda/warmlambda/core/config.py)) to their default values, units, and engineering rationales.
+The table below maps all configurable simulation parameters from `SimConfig` ([backend/warmlambda/core/config.py](file:///c:/warmlambda/backend/warmlambda/core/config.py)) to their default values, units, and engineering rationales.
 
 | Parameter | Default Value | Units | Rationale |
 |---|---|---|---|
@@ -29,7 +29,7 @@ The table below maps all configurable simulation parameters from `SimConfig` ([w
 
 ## 2. Traffic Scenario Assumptions
 
-All traffic traces are generated using a non-homogeneous Poisson process (NHPP) via Lewis-Shedler thinning ([warmlambda/core/traffic.py](file:///c:/warmlambda/warmlambda/core/traffic.py)).
+All traffic traces are generated using a non-homogeneous Poisson process (NHPP) via Lewis-Shedler thinning ([backend/warmlambda/core/traffic.py](file:///c:/warmlambda/backend/warmlambda/core/traffic.py)).
 
 | Scenario | Rate Function Formula | Peak Rate | Total Expected Invocations | Workload Characteristics |
 |---|---|---|---|---|

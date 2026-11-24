@@ -12,14 +12,14 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.metrics import compute_metrics, metrics_to_row
-from warmlambda.core.policies.fixed import FixedWarming
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.policies.oracle import Oracle
-from warmlambda.core.policies.reactive import Reactive
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import SCENARIOS, generate_trace
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.metrics import compute_metrics, metrics_to_row
+from backend.warmlambda.core.policies.fixed import FixedWarming
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.policies.oracle import Oracle
+from backend.warmlambda.core.policies.reactive import Reactive
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import SCENARIOS, generate_trace
 
 
 def _format_table(header: list[str], rows: list[list[str]]) -> str:

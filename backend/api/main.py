@@ -12,8 +12,8 @@ import io
 import os
 from pathlib import Path
 
-# Ensure workspace root is in sys.path
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Ensure workspace root is in sys.path when the API is launched directly.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.schemas import (
+from backend.api.schemas import (
     DISCLAIMER,
     CompareRequest,
     CompareResponse,
@@ -36,7 +36,7 @@ from api.schemas import (
     ScenariosResponse,
     SummaryResponse,
 )
-from api.services import build_capacity_plan, get_results_summary, run_comparison, run_single_simulation
+from backend.api.services import build_capacity_plan, get_results_summary, run_comparison, run_single_simulation
 
 app = FastAPI(
     title="WarmLambda AI API",
@@ -94,15 +94,15 @@ def get_scenarios() -> ScenariosResponse:
     scenarios = [
         ScenarioItem(
             name="moderate",
-            description="Base 3 req/s ± 30 % sine wave with a 1200 s period.",
+            description="Base 3 req/s Â± 30 % sine wave with a 1200 s period.",
         ),
         ScenarioItem(
             name="high_load",
-            description="Base 30 req/s with a linear ramp from 0.6× to 1.4× over the duration.",
+            description="Base 30 req/s with a linear ramp from 0.6Ã— to 1.4Ã— over the duration.",
         ),
         ScenarioItem(
             name="extreme",
-            description="Base 2 req/s with 3-6 random unpredictable spikes of 15× lasting 30-120 s each.",
+            description="Base 2 req/s with 3-6 random unpredictable spikes of 15Ã— lasting 30-120 s each.",
         ),
         ScenarioItem(
             name="periodic",
@@ -137,7 +137,8 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Proactive safety margin multiplier above Little's Law (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
+                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
             },
         ),
         PolicyItem(
@@ -146,7 +147,8 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Headroom margin multiplier on current concurrency (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
+                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
             },
         ),
         PolicyItem(
@@ -155,7 +157,8 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Safety margin multiplier on both forecast and load (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name; defaults to trained ridge_q90 when available, otherwise ewma.",
+                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
+                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
             },
         ),
         PolicyItem(

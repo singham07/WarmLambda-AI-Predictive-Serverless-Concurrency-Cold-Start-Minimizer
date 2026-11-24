@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 
 
 class Reactive(Policy):

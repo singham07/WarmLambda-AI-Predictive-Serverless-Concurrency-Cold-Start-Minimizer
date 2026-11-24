@@ -24,8 +24,8 @@ from typing import Any
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.simulator import SimResult
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.simulator import SimResult
 
 
 _NAN = float("nan")

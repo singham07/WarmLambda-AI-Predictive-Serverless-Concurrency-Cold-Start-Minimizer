@@ -10,7 +10,7 @@ the idle-timeout window.
 
 from __future__ import annotations
 
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 
 
 class NoWarming(Policy):

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
-from warmlambda.core.forecaster_registry import default_model_name
+from backend.warmlambda.core.forecaster_registry import default_model_name
 
 DISCLAIMER: str = "Simulated estimates under stated assumptions; not real AWS costs."
 
@@ -59,7 +59,8 @@ class RunRequest(BaseModel):
     fixed_n: Optional[int] = Field(default=None, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
-    model: str = Field(default_factory=default_model_name, description="Forecaster: ewma, seasonal, ridge, ridge_q90, or gru")
+    model: str = Field(default_factory=default_model_name, description="Forecaster name")
+    xgboost_weight: float = Field(default=0.5, ge=0.0, le=1.0, description="XGBoost share in the EWMA/XGBoost ensemble")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides
@@ -110,6 +111,7 @@ class CompareRequest(BaseModel):
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
     model: str = Field(default_factory=default_model_name, description="Forecaster name")
+    xgboost_weight: float = Field(default=0.5, ge=0.0, le=1.0, description="XGBoost share in the EWMA/XGBoost ensemble")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides

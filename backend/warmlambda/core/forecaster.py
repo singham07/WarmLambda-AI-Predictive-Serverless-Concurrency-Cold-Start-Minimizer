@@ -14,10 +14,10 @@ Poisson Noise Note
 ------------------
 Even a perfect forecast of the underlying true arrival rate has non-zero error
 when evaluated against actual discrete arrivals, due to intrinsic Poisson noise.
-For a Poisson arrival process with rate λ over window length W, the observed count
-X ~ Poisson(λW) has standard deviation:
+For a Poisson arrival process with rate Î» over window length W, the observed count
+X ~ Poisson(Î»W) has standard deviation:
 
-    σ_count = sqrt(λ * W)  →  σ_rate = sqrt(λ / W)
+    Ïƒ_count = sqrt(Î» * W)  â†’  Ïƒ_rate = sqrt(λ / W)
 
 Therefore, empirical forecast error metrics have a theoretical floor determined by
 Poisson variance rather than model deficiency.
@@ -29,8 +29,8 @@ import math
 from abc import ABC, abstractmethod
 from typing import Any
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.traffic import Request
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.traffic import Request
 
 
 class Forecaster(ABC):

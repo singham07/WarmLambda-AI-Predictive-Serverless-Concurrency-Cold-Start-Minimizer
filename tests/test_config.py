@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from warmlambda.core.config import SimConfig
+from backend.warmlambda.core.config import SimConfig
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -23,16 +23,16 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import matplotlib  # noqa: E402  (must come after path patch)
-matplotlib.use("Agg")  # headless – no display required
+matplotlib.use("Agg")  # headless â€“ no display required
 
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker as ticker  # noqa: E402
 import numpy as np  # noqa: E402
 
-from warmlambda.core.config import SimConfig  # noqa: E402
-from warmlambda.core.traffic import SCENARIOS, generate_trace  # noqa: E402
+from backend.warmlambda.core.config import SimConfig  # noqa: E402
+from backend.warmlambda.core.traffic import SCENARIOS, generate_trace  # noqa: E402
 
-# ── Visual theme ────────────────────────────────────────────────────────────
+# â”€â”€ Visual theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _PALETTE = {
     "moderate":  "#4C72B0",
@@ -42,9 +42,9 @@ _PALETTE = {
 }
 
 _DESCRIPTIONS = {
-    "moderate":  "Base 3 req/s · ±30 % sine (period 1200 s)",
-    "high_load": "Base 30 req/s · linear ramp 0.6× → 1.4×",
-    "extreme":   "Base 2 req/s · 3-6 random spikes × 15",
+    "moderate":  "Base 3 req/s Â· Â±30 % sine (period 1200 s)",
+    "high_load": "Base 30 req/s Â· linear ramp 0.6Ã— â†’ 1.4Ã—",
+    "extreme":   "Base 2 req/s Â· 3-6 random spikes Ã— 15",
     "periodic":  "Base 5 req/s · 60 % sine (period 600 s)",
 }
 

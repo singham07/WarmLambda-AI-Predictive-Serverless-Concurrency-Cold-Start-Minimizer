@@ -9,14 +9,16 @@ from pathlib import Path
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.ml_dataset import build_dataset
-from warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.ml_dataset import build_dataset
+from backend.warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster, XGBoostForecaster
 
 
 def _mae(model, X: np.ndarray, y: np.ndarray) -> float:
     sample = X[:20000]
     if isinstance(model, RidgeForecaster):
+        predictions = model.predict_features(sample)
+    elif isinstance(model, XGBoostForecaster):
         predictions = model.predict_features(sample)
     else:
         predictions = np.maximum(
@@ -57,6 +59,17 @@ def main() -> None:
         print(f"[train_forecasters] {name}: validation MAE={validation_mae:.6f}, train_time_s={time.perf_counter() - fit_start:.1f}")
 
     try:
+        xgboost = XGBoostForecaster(k=60, window_s=10.0)
+        fit_start = time.perf_counter()
+        xgboost.fit(X[train_mask], y[train_mask], groups[train_mask])
+        results["xgboost"] = _mae(xgboost, X[val_mask], y[val_mask])
+        xgboost.save(model_dir / "xgboost.json")
+        print(f"[train_forecasters] xgboost: validation MAE={results['xgboost']:.6f}, train_time_s={time.perf_counter() - fit_start:.1f}")
+    except RuntimeError as exc:
+        results["xgboost"] = f"unavailable: {exc}"
+        print(f"[train_forecasters] {exc}; skipping XGBoost")
+
+    try:
         gru = GRUForecaster(k=60, window_s=10.0)
         fit_start = time.perf_counter()
         gru.fit(X[train_mask], y[train_mask], groups[train_mask])
@@ -74,7 +87,7 @@ def main() -> None:
         "validation_metrics": results,
         "training_time_s": time.perf_counter() - started,
         "library_versions": {
-            name: _version(name) for name in ("numpy", "pandas", "tensorflow")
+            name: _version(name) for name in ("numpy", "pandas", "tensorflow", "xgboost")
         },
     }
     (model_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")

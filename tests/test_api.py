@@ -9,8 +9,8 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 import pytest
 
-from api.main import app
-from api.schemas import DISCLAIMER, VALID_SCENARIOS
+from backend.api.main import app
+from backend.api.schemas import DISCLAIMER, VALID_SCENARIOS
 
 client = TestClient(app)
 
@@ -214,6 +214,6 @@ def test_results_summary(tmp_path, monkeypatch) -> None:
 
     # Test missing file gives 404
     missing_file = tmp_path / "non_existent.csv"
-    monkeypatch.setattr("api.services.Path", lambda *args, **kwargs: missing_file)
+    monkeypatch.setattr("backend.api.services.Path", lambda *args, **kwargs: missing_file)
     response_404 = client.get("/results/summary")
     assert response_404.status_code == 404

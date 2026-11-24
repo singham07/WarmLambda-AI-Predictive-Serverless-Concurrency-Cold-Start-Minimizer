@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster_registry import get_forecaster
-from warmlambda.core.ml_dataset import counts_to_features
-from warmlambda.core.ml_forecaster import RidgeForecaster
-from warmlambda.core.policies.warmlambda import WarmLambdaPolicy
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster_registry import get_forecaster
+from backend.warmlambda.core.ml_dataset import counts_to_features
+from backend.warmlambda.core.ml_forecaster import RidgeForecaster
+from backend.warmlambda.core.policies.warmlambda import WarmLambdaPolicy
 
 
 def test_features_ignore_future_counts() -> None:

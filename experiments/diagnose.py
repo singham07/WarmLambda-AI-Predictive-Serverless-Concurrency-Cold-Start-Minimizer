@@ -19,11 +19,11 @@ Findings from ``moderate`` and ``high_load`` with duration 3600, seed 0:
 
 from __future__ import annotations
 
-from api.services import instantiate_policy
-from warmlambda.core.config import SimConfig
-from warmlambda.core.metrics import compute_metrics
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import generate_trace
+from backend.api.services import instantiate_policy
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.metrics import compute_metrics
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import generate_trace
 
 
 POLICIES = ("no_warming", "reactive", "wl_forecast_only", "wl_full")

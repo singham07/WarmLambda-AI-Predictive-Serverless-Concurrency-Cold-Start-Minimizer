@@ -6,7 +6,7 @@ Fixed warming policy that always returns a constant number of warm instances.
 
 from __future__ import annotations
 
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 
 
 class FixedWarming(Policy):

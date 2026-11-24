@@ -19,12 +19,12 @@ import math
 
 import pytest
 
-from warmlambda.core.capacity import capacity_from_rate
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import EWMAForecaster
-from warmlambda.core.policies.warmlambda import WarmLambdaPolicy
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import Request, generate_trace
+from backend.warmlambda.core.capacity import capacity_from_rate
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import EWMAForecaster
+from backend.warmlambda.core.policies.warmlambda import WarmLambdaPolicy
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import Request, generate_trace
 
 
 class TestCapacityFromRate:

@@ -8,16 +8,16 @@ from pathlib import Path
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import (
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import (
     EWMAForecaster,
     SeasonalNaiveForecaster,
     bin_trace_to_windows,
 )
-from warmlambda.core.forecaster_registry import get_forecaster
-from warmlambda.core.ml_dataset import counts_to_features
-from warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster
-from warmlambda.core.traffic import SCENARIOS, generate_trace
+from backend.warmlambda.core.forecaster_registry import get_forecaster
+from backend.warmlambda.core.ml_dataset import counts_to_features
+from backend.warmlambda.core.ml_forecaster import GRUForecaster, RidgeForecaster
+from backend.warmlambda.core.traffic import SCENARIOS, generate_trace
 
 
 def _score(forecaster, counts: list[int], window_s: float, q90: bool = False) -> dict[str, float]:

@@ -5,14 +5,14 @@ Unit and statistical tests for :mod:`warmlambda.core.traffic`.
 
 Test classes
 ------------
-TestRequest              – frozen dataclass basics
-TestReproducibility      – same seed ↔ identical trace; different seeds differ
-TestArrivalProperties    – sorted, in-range, sequential IDs
-TestCountAccuracy        – empirical count within 10 % of rate-function integral
-TestExecTimeMean         – empirical mean exec_s within 10 % of cfg.mean_exec_s
-TestExtremeSpikes        – at least one window with rate > 5× base
-TestUnknownScenario      – generate_trace raises ValueError on bad scenario
-TestSaveLoad             – CSV round-trip identical to original trace
+TestRequest              â€“ frozen dataclass basics
+TestReproducibility      â€“ same seed â†” identical trace; different seeds differ
+TestArrivalProperties    â€“ sorted, in-range, sequential IDs
+TestCountAccuracy        â€“ empirical count within 10 % of rate-function integral
+TestExecTimeMean         â€“ empirical mean exec_s within 10 % of cfg.mean_exec_s
+TestExtremeSpikes        â€“ at least one window with rate > 5Ã— base
+TestUnknownScenario      â€“ generate_trace raises ValueError on bad scenario
+TestSaveLoad             â€“ CSV round-trip identical to original trace
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ import math
 import numpy as np
 import pytest
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.traffic import (
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.traffic import (
     SCENARIOS,
     Request,
     generate_trace,
@@ -133,21 +133,21 @@ class TestArrivalProperties:
 
 
 class TestCountAccuracy:
-    """Empirical request count should be within 10 % of ∫rate(t)dt."""
+    """Empirical request count should be within 10 % of âˆ«rate(t)dt."""
 
-    # ── Analytic integrals ──────────────────────────────────────────────────
+    # â”€â”€ Analytic integrals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @staticmethod
     def _integral_moderate(duration_s: float) -> float:
-        """∫₀ᵀ 3·(1 + 0.3·sin(2π·t/1200)) dt = 3·T  (sine averages to ~0)."""
+        """âˆ«â‚€áµ€ 3Â·(1 + 0.3Â·sin(2Ï€Â·t/1200)) dt = 3Â·T  (sine averages to ~0)."""
         return 3.0 * duration_s
 
     @staticmethod
     def _integral_high_load(cfg: SimConfig) -> float:
-        """∫₀ᵀ 30·(0.6 + 0.8·t/T) dt = 30·T·(0.6 + 0.4) = 30·T."""
+        """âˆ«â‚€áµ€ 30Â·(0.6 + 0.8Â·t/T) dt = 30Â·TÂ·(0.6 + 0.4) = 30Â·T."""
         return 30.0 * cfg.duration_s  # average scale = (0.6+1.4)/2 = 1.0
 
-    # ── Tests ───────────────────────────────────────────────────────────────
+    # â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def test_moderate_count_within_10_percent(self) -> None:
         cfg = SimConfig(duration_s=3600.0)
@@ -205,10 +205,10 @@ class TestExecTimeMean:
 
 
 class TestExtremeSpikes:
-    """The extreme scenario must have at least one window with rate > 5× base."""
+    """The extreme scenario must have at least one window with rate > 5Ã— base."""
 
     def test_spike_window_exists(self) -> None:
-        """Find a 30-second bin whose empirical rate exceeds 5 × 2.0 req/s."""
+        """Find a 30-second bin whose empirical rate exceeds 5 Ã— 2.0 req/s."""
         cfg = SimConfig(duration_s=3600.0)
         BIN_S = 30.0
         BASE = 2.0
@@ -226,18 +226,18 @@ class TestExtremeSpikes:
 
             max_rate_empirical = max(counts) / BIN_S
             if max_rate_empirical > THRESHOLD_MULT * BASE:
-                return  # Found a spike – test passes
+                return  # Found a spike â€“ test passes
 
         pytest.fail(
-            f"No 30 s window exceeded {THRESHOLD_MULT}× base ({BASE} req/s) "
+            f"No 30 s window exceeded {THRESHOLD_MULT}Ã— base ({BASE} req/s) "
             f"across seeds 0-4 for extreme scenario."
         )
 
     def test_get_max_rate_extreme_above_base(self) -> None:
-        """get_max_rate for extreme must be > 5× the base rate."""
+        """get_max_rate for extreme must be > 5Ã— the base rate."""
         cfg = SimConfig(duration_s=3600.0)
         max_r = get_max_rate("extreme", cfg, seed=0)
-        assert max_r > 5 * 2.0, f"get_max_rate={max_r} not > 5×base"
+        assert max_r > 5 * 2.0, f"get_max_rate={max_r} not > 5Ã—base"
 
 
 # ---------------------------------------------------------------------------

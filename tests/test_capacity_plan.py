@@ -8,12 +8,12 @@ import math
 
 from fastapi.testclient import TestClient
 
-from api.main import app
-from warmlambda.core.config import SimConfig
-from warmlambda.core.metrics import compute_metrics
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import Request
+from backend.api.main import app
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.metrics import compute_metrics
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import Request
 
 
 def test_hand_computed_capacity_plan_and_invariants() -> None:

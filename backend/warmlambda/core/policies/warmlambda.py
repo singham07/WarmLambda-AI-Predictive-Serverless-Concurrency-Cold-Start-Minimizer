@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from warmlambda.core.capacity import capacity_from_rate
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import Forecaster
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.capacity import capacity_from_rate
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import Forecaster
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 
 
 class WarmLambdaPolicy(Policy):

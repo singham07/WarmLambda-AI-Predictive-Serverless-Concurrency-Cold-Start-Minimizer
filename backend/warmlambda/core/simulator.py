@@ -38,9 +38,9 @@ from typing import Optional
 
 import numpy as np
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
-from warmlambda.core.traffic import Request
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.traffic import Request
 
 
 # ---------------------------------------------------------------------------

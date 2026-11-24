@@ -7,14 +7,14 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.metrics import compute_metrics
-from warmlambda.core.policies.fixed import FixedWarming
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.policies.reactive import Reactive
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import SCENARIOS, generate_trace
-from api.services import instantiate_policy
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.metrics import compute_metrics
+from backend.warmlambda.core.policies.fixed import FixedWarming
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.policies.reactive import Reactive
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import SCENARIOS, generate_trace
+from backend.api.services import instantiate_policy
 
 
 def main() -> None:

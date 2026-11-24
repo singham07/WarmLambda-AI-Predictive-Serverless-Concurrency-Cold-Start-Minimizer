@@ -10,11 +10,11 @@ import math
 
 import pytest
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.simulator import simulate, SimResult
-from warmlambda.core.traffic import Request
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.simulator import simulate, SimResult
+from backend.warmlambda.core.traffic import Request
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ def _req(id: int, arrival_s: float, exec_s: float) -> Request:
 
 
 # ---------------------------------------------------------------------------
-# Test: one request at t=0, exec 0.5 → cold, latency 1.5
+# Test: one request at t=0, exec 0.5 â†’ cold, latency 1.5
 # ---------------------------------------------------------------------------
 
 
@@ -71,7 +71,7 @@ class TestOneRequest:
 
 # ---------------------------------------------------------------------------
 # Test: two requests, t=0 and t=10, exec 0.5 each, idle_timeout=300
-#   → first cold (latency 1.5), second warm (latency 0.5)
+#   â†’ first cold (latency 1.5), second warm (latency 0.5)
 # ---------------------------------------------------------------------------
 
 
@@ -101,7 +101,7 @@ class TestTwoRequestsWarmReuse:
 
 # ---------------------------------------------------------------------------
 # Test: two overlapping requests at t=0 and t=0.1, concurrency=1
-#   → both cold (each gets its own instance)
+#   â†’ both cold (each gets its own instance)
 # ---------------------------------------------------------------------------
 
 
@@ -128,7 +128,7 @@ class TestOverlappingColdStarts:
 
 
 # ---------------------------------------------------------------------------
-# Test: max_instances=1, queue_timeout_s=0.2 with a long request → second
+# Test: max_instances=1, queue_timeout_s=0.2 with a long request â†’ second
 #   request is dropped
 # ---------------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ class TestAllRequestsAccountedFor:
 
 
 # ---------------------------------------------------------------------------
-# Test: init_time_s=0 → no cold-start latency added
+# Test: init_time_s=0 â†’ no cold-start latency added
 # ---------------------------------------------------------------------------
 
 
@@ -256,7 +256,7 @@ class TestIntegrationModerate:
     """Running a 1-hour moderate trace with NoWarming should complete fast."""
 
     def test_runs_and_has_cold_starts(self) -> None:
-        from warmlambda.core.traffic import generate_trace
+        from backend.warmlambda.core.traffic import generate_trace
 
         cfg = SimConfig()  # defaults: 1 hour
         trace = generate_trace("moderate", cfg, seed=42)

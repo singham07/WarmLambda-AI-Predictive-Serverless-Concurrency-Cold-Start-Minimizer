@@ -10,14 +10,14 @@ import math
 
 import pytest
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.policies.base import Policy, SimState, TrafficHistory
-from warmlambda.core.policies.fixed import FixedWarming
-from warmlambda.core.policies.no_warming import NoWarming
-from warmlambda.core.policies.oracle import Oracle
-from warmlambda.core.policies.reactive import Reactive
-from warmlambda.core.simulator import simulate
-from warmlambda.core.traffic import Request, generate_trace
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
+from backend.warmlambda.core.policies.fixed import FixedWarming
+from backend.warmlambda.core.policies.no_warming import NoWarming
+from backend.warmlambda.core.policies.oracle import Oracle
+from backend.warmlambda.core.policies.reactive import Reactive
+from backend.warmlambda.core.simulator import simulate
+from backend.warmlambda.core.traffic import Request, generate_trace
 
 
 # ---------------------------------------------------------------------------

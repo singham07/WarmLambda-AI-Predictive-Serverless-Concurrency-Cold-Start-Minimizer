@@ -10,9 +10,9 @@ import math
 
 import pytest
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.metrics import compute_metrics, metrics_to_row
-from warmlambda.core.simulator import RequestRecord, SimResult
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.metrics import compute_metrics, metrics_to_row
+from backend.warmlambda.core.simulator import RequestRecord, SimResult
 
 
 # ---------------------------------------------------------------------------
@@ -65,14 +65,14 @@ def _rec(
 # ---------------------------------------------------------------------------
 
 class TestKnownMetrics:
-    """Four requests: 2 cold, 1 warm, 1 dropped → exact metric values."""
+    """Four requests: 2 cold, 1 warm, 1 dropped â†’ exact metric values."""
 
     @pytest.fixture()
     def result_and_cfg(self) -> tuple[SimResult, SimConfig]:
         cfg = _cfg(warm_cost_weight=2.0, busy_cost_weight=1.5)
-        # Request 0: cold, arrival=0, start=1.0, finish=1.5 → latency=1.5
-        # Request 1: warm, arrival=5, start=5.0, finish=5.5 → latency=0.5
-        # Request 2: cold, arrival=10, start=11.0, finish=12.0 → latency=2.0
+        # Request 0: cold, arrival=0, start=1.0, finish=1.5 â†’ latency=1.5
+        # Request 1: warm, arrival=5, start=5.0, finish=5.5 â†’ latency=0.5
+        # Request 2: cold, arrival=10, start=11.0, finish=12.0 â†’ latency=2.0
         # Request 3: dropped
         requests = [
             _rec(0, arrival_s=0.0, start_s=1.0, finish_s=1.5, cold=True, dropped=False),
@@ -118,19 +118,19 @@ class TestKnownMetrics:
     def test_mean_latency(self, result_and_cfg: tuple[SimResult, SimConfig]) -> None:
         result, cfg = result_and_cfg
         m = compute_metrics(result, cfg)
-        # (1.5 + 0.5 + 2.0) / 3 = 4.0/3 ≈ 1.3333
+        # (1.5 + 0.5 + 2.0) / 3 = 4.0/3 â‰ˆ 1.3333
         assert math.isclose(m["mean_latency_s"], 4.0 / 3.0, abs_tol=1e-9)
 
     def test_p50_latency(self, result_and_cfg: tuple[SimResult, SimConfig]) -> None:
         result, cfg = result_and_cfg
         m = compute_metrics(result, cfg)
-        # sorted latencies: [0.5, 1.5, 2.0] → median = 1.5
+        # sorted latencies: [0.5, 1.5, 2.0] â†’ median = 1.5
         assert math.isclose(m["p50_latency_s"], 1.5, abs_tol=1e-9)
 
     def test_p95_latency(self, result_and_cfg: tuple[SimResult, SimConfig]) -> None:
         result, cfg = result_and_cfg
         m = compute_metrics(result, cfg)
-        # p95 of [0.5, 1.5, 2.0] → close to 2.0
+        # p95 of [0.5, 1.5, 2.0] â†’ close to 2.0
         assert m["p95_latency_s"] >= 1.5
         assert m["p95_latency_s"] <= 2.0 + 1e-9
 
@@ -156,7 +156,7 @@ class TestKnownMetrics:
     def test_utilization(self, result_and_cfg: tuple[SimResult, SimConfig]) -> None:
         result, cfg = result_and_cfg
         m = compute_metrics(result, cfg)
-        # 10 / (10 + 20 + 5) = 10/35 ≈ 0.2857
+        # 10 / (10 + 20 + 5) = 10/35 â‰ˆ 0.2857
         assert math.isclose(m["utilization"], 10.0 / 35.0, abs_tol=1e-9)
 
     def test_all_keys_present(self, result_and_cfg: tuple[SimResult, SimConfig]) -> None:
@@ -177,7 +177,7 @@ class TestKnownMetrics:
 # ---------------------------------------------------------------------------
 
 class TestEmptyResult:
-    """Empty trace → counts are 0, latencies and rates are nan."""
+    """Empty trace â†’ counts are 0, latencies and rates are nan."""
 
     @pytest.fixture()
     def metrics(self) -> dict:
@@ -220,7 +220,7 @@ class TestEmptyResult:
 # ---------------------------------------------------------------------------
 
 class TestAllDropped:
-    """Every request dropped → cold_start_rate is nan, latencies are nan."""
+    """Every request dropped â†’ cold_start_rate is nan, latencies are nan."""
 
     @pytest.fixture()
     def metrics(self) -> dict:
@@ -261,7 +261,7 @@ class TestAllDropped:
         assert math.isnan(metrics["p99_latency_s"])
 
     def test_utilization_zero(self, metrics: dict) -> None:
-        # busy=0, total=8 → utilization=0
+        # busy=0, total=8 â†’ utilization=0
         assert math.isclose(metrics["utilization"], 0.0, abs_tol=1e-9)
 
     def test_total_cost(self, metrics: dict) -> None:
@@ -302,16 +302,16 @@ class TestMetricsToRow:
 
 
 # ---------------------------------------------------------------------------
-# Integration: NoWarming on moderate → sensible values
+# Integration: NoWarming on moderate â†’ sensible values
 # ---------------------------------------------------------------------------
 
 class TestIntegrationModerate:
     """Metrics from a real simulation should have sensible ranges."""
 
     def test_sensible_metrics(self) -> None:
-        from warmlambda.core.policies.no_warming import NoWarming
-        from warmlambda.core.simulator import simulate
-        from warmlambda.core.traffic import generate_trace
+        from backend.warmlambda.core.policies.no_warming import NoWarming
+        from backend.warmlambda.core.simulator import simulate
+        from backend.warmlambda.core.traffic import generate_trace
 
         cfg = SimConfig()
         trace = generate_trace("moderate", cfg, seed=42)

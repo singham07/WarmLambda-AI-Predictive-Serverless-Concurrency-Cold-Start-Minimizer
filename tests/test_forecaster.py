@@ -18,15 +18,15 @@ import random
 
 import pytest
 
-from warmlambda.core.config import SimConfig
-from warmlambda.core.forecaster import (
+from backend.warmlambda.core.config import SimConfig
+from backend.warmlambda.core.forecaster import (
     EWMAForecaster,
     LastValueForecaster,
     SeasonalNaiveForecaster,
     bin_trace_to_windows,
     evaluate_forecaster,
 )
-from warmlambda.core.traffic import Request
+from backend.warmlambda.core.traffic import Request
 
 
 # ---------------------------------------------------------------------------
