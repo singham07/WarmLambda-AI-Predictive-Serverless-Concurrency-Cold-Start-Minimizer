@@ -45,6 +45,9 @@ To maintain academic and scientific integrity, this project explicitly states:
 2. **No Real-World Dollar Savings**:
    - The cost values reported by the simulator are dimensionless resource units designed for controlled comparative experiments. They do not correlate directly with specific dollar amounts or guarantee financial savings on real AWS bills.
 3. **No General Workload Universality**:
-   - The four synthetic scenarios (moderate, high load, extreme, periodic) represent specific idealized stress tests. Real enterprise serverless workloads exhibit diverse patterns that may not align with these mathematical generators.
+   - The six synthetic scenarios represent specific idealized stress tests. Real enterprise serverless workloads exhibit diverse patterns that may not align with these mathematical generators.
+   - The seasonal period is given to the forecaster as a known cycle.
+   - Results on synthetic traffic do not prove real-world gains.
+   - The 60 s idle timeout in the old benchmark makes its no-warming baseline easy to keep warm.
 4. **No Affiliation with Amazon Web Services**:
    - WarmLambda AI is an independent academic research and education project at GLA University. It is not affiliated with, sponsored by, or endorsed by Amazon Web Services (AWS) or Amazon.com, Inc.

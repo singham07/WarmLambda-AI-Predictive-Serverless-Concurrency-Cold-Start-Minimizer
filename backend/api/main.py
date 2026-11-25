@@ -108,6 +108,14 @@ def get_scenarios() -> ScenariosResponse:
             name="periodic",
             description="Base 5 req/s with 60 % sine wave amplitude and a 600 s period.",
         ),
+        ScenarioItem(
+            name="scheduled_bursts",
+            description="Base 1 req/s with 12 req/s bursts lasting 60 s every 600 s, starting at 300 s with up to 5 s jitter.",
+        ),
+        ScenarioItem(
+            name="daily_cycle",
+            description="Compressed day with period 1800 s, trough 0.5 req/s, morning ramp over 120 s to a 20 req/s plateau lasting 600 s, then decay.",
+        ),
     ]
     return ScenariosResponse(scenarios=scenarios, disclaimer=DISCLAIMER)
 
@@ -240,3 +248,12 @@ def get_summary() -> SummaryResponse:
     """Return aggregated benchmark metrics (mean, std) from results/final_metrics.csv."""
     summary_data = get_results_summary()
     return SummaryResponse(summary=summary_data, disclaimer=DISCLAIMER)
+
+
+@app.get("/{frontend_path:path}", include_in_schema=False)
+def serve_frontend_route(frontend_path: str):
+    """Serve the single-page frontend for browser history routes."""
+    frontend_routes = {"experiment-results", "method", "privacy", "terms"}
+    if frontend_path in frontend_routes and (static_dir / "index.html").exists():
+        return FileResponse(static_dir / "index.html")
+    return {"detail": "Not Found"}

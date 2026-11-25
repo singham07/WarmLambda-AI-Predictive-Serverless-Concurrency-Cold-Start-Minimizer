@@ -5,6 +5,7 @@ import ExperimentSummary from "./pages/ExperimentSummary";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
+import Method from "./pages/Method";
 
 function BrandMark() {
   return (
@@ -19,7 +20,7 @@ function BrandMark() {
 
 export default function App() {
   return (
-    <BrowserRouter basename="/static">
+    <BrowserRouter>
       <header className="site-header">
         <div className="header-inner">
           <Link to="/" className="brand">
@@ -28,9 +29,10 @@ export default function App() {
           </Link>
           <nav className="site-nav" aria-label="Primary navigation">
             <NavLink to="/" end>Simulator</NavLink>
-            <NavLink to="/experiment-results">Experiment results</NavLink>
+            <NavLink to="/experiment-results">Experiments</NavLink>
+            <NavLink to="/method">Method</NavLink>
           </nav>
-          <span className="sim-note"><i />Simulation environment / estimates only</span>
+          <span className="sim-note"><i />Simulated estimates, not real AWS measurements or costs</span>
         </div>
       </header>
 
@@ -38,6 +40,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/experiment-results" element={<ExperimentSummary />} />
+          <Route path="/method" element={<Method />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />

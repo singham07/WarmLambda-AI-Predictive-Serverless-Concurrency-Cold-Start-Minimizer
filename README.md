@@ -5,7 +5,7 @@ WarmLambda AI is a discrete-event simulator and interactive dashboard designed t
 It models the full container lifecycle (cold starts, warm idle states, active execution, eviction, and queue timeouts) and benchmarks predictive keep-alive strategies against reactive and static provisioning baselines. Costs are measured in dimensionless simulation units, providing a controlled environment for algorithmic research without cloud provider costs or deployment overheads.
 
 The standard simulation duration is **3600 seconds (1 hour)** and the default
-idle timeout is **60 seconds**. API requests shorter than 600 seconds are
+idle timeout is **60 seconds** for the legacy benchmark. API requests shorter than 600 seconds are
 rejected unless they explicitly set `allow_short_runs=true` for diagnostics.
 
 > [!NOTE]
@@ -179,6 +179,15 @@ Run the automated simulation benchmark scripts directly from the repository root
    ```
    Output: `results/forecast_policy.csv` and updated `results/final_metrics.csv`.
 
+8. **Run the scale-to-zero realistic experiment**:
+   ```bash
+   python -m experiments.run_realistic
+   ```
+   This evaluates scheduled bursts and a compressed daily cycle with a
+   10-second idle timeout. It writes `results/realistic.csv`,
+   `results/realistic_summary.md`, `results/pareto.csv`, and figures under
+   `results/figures/`.
+
 ---
 
 ## Running Tests
@@ -196,6 +205,7 @@ The test suite validates:
 - Causal isolation and proof of zero future-data leakage in policy decisions.
 - Deterministic trace generation across seeds.
 - FastAPI endpoint schemas, CORS headers, and error handling.
+- Burst-focused SLO, burst cold-start, and readiness metrics.
 
 ---
 

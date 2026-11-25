@@ -8,6 +8,7 @@
     "check": "node scripts/check.mjs",
     "prebuild": "node scripts/check.mjs",
     "build": "vite build",
+    "build:api": "node scripts/check.mjs && vite build --base=/static/ --outDir ../backend/api/static --emptyOutDir",
     "lint": "oxlint",
     "preview": "vite preview"
   },

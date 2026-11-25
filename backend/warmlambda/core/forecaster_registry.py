@@ -23,12 +23,14 @@ def default_model_name() -> str:
 
 
 @lru_cache(maxsize=16)
-def get_forecaster(name: str, xgboost_weight: float = 0.5):
+def get_forecaster(
+    name: str, xgboost_weight: float = 0.5, period_windows: int = 60
+):
     """Return a named forecaster, loading trained models when required."""
     if name == "ewma":
         return EWMAForecaster(alpha=0.4)
     if name == "seasonal":
-        return SeasonalNaiveForecaster(period_windows=60)
+        return SeasonalNaiveForecaster(period_windows=period_windows)
     if name in {"ridge", "ridge_q90"}:
         path = MODEL_DIR / f"{name}.npz"
         if not path.exists():

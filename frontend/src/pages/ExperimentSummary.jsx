@@ -1,134 +1,34 @@
-import React, { useEffect, useState } from "react";
-import { API_BASE_URL } from "../config";
+import React, { useEffect, useMemo, useState } from "react";
+import { getSummary } from "../lib/api";
+import { friendlyName, number } from "../lib/format";
 
-const SCENARIO_LABELS = {
-  moderate: "Moderate traffic",
-  high_load: "High load",
-  extreme: "Extreme spikes",
-  periodic: "Repeating pattern",
-};
+const METRICS = [
+  ["cold_start_rate", "Cold start rate", true],
+  ["total_cost", "Cost", false],
+  ["mean_latency_s", "Mean latency", false],
+  ["utilization", "Utilization", true],
+];
 
-function policyLabel(name) {
-  if (name === "no_warming") return "No warming";
-  if (name === "reactive") return "Reactive";
-  if (name === "oracle") return "Oracle (uses future data)";
-  if (name.startsWith("fixed_")) return `Fixed warming, ${name.slice(6)} instances`;
-  if (name.startsWith("warmlambda_h")) return `WarmLambda AI, headroom ${name.slice(12)}`;
-  return name;
-}
-
-function policyOrder(name) {
+function order(name) {
   if (name === "no_warming") return 0;
-  if (name.startsWith("fixed_")) return 1;
+  if (name.startsWith("fixed")) return 1;
   if (name === "reactive") return 2;
-  if (name.startsWith("warmlambda")) return 3;
+  if (name.startsWith("wl")) return 3;
   return 4;
 }
 
-const COLUMNS = [
-  ["cold_start_rate", "Cold start rate", true, 3, false],
-  ["mean_latency_s", "Mean latency (s)", false, 3, false],
-  ["total_cost", "Cost (units)", false, 0, false],
-  ["utilization", "Utilization", true, 1, true],
-];
-
-function cell(metrics, key, percent, digits) {
-  const stat = metrics[key];
+function display(stat, isPercent) {
   if (!stat || stat.mean === null || stat.mean === undefined) return "n/a";
-  const scale = percent ? 100 : 1;
-  const suffix = percent ? "%" : "";
-  const mean = (stat.mean * scale).toFixed(digits);
-  const spread = stat.std !== null && stat.std !== undefined ? (stat.std * scale).toFixed(digits) : (0).toFixed(digits);
-  return `${mean}${suffix} ± ${spread}`;
+  const scale = isPercent ? 100 : 1;
+  return `${number(stat.mean * scale, isPercent ? 2 : 3)}${isPercent ? "%" : ""} ± ${number((stat.std || 0) * scale, isPercent ? 2 : 3)}`;
 }
 
 export default function ExperimentSummary() {
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [summaryData, setSummaryData] = useState(null);
-
-  useEffect(() => {
-    async function fetchSummary() {
-      setLoading(true);
-      setErrorMsg("");
-      try {
-        const res = await fetch(`${API_BASE_URL}/results/summary`);
-        if (res.status === 404) {
-          setErrorMsg("Experiment results are not available yet. Run the experiment scripts first.");
-          return;
-        }
-        if (!res.ok) {
-          setErrorMsg(`Error loading summary (status ${res.status}).`);
-          return;
-        }
-        const data = await res.json();
-        setSummaryData(data.summary);
-      } catch (err) {
-        setErrorMsg(`Could not reach the backend: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSummary();
-  }, []);
-
-  return (
-    <div>
-      <div className="page-head">
-        <h1>Experiment results</h1>
-        <p>
-          Mean and standard deviation across all benchmark seeds, read from results/final_metrics.csv.
-          The best value in each column is shown in green.
-        </p>
-      </div>
-
-      {loading && <div className="loading-line" role="status" aria-label="Loading experiment results" />}
-      {errorMsg && <div className="notice-box">{errorMsg}</div>}
-
-      {!loading && !errorMsg && summaryData && (
-        <div className="scenario-stack">
-          {Object.entries(summaryData).map(([scenario, policies]) => {
-            const names = Object.keys(policies).sort((a, b) => policyOrder(a) - policyOrder(b) || a.localeCompare(b, undefined, { numeric: true }));
-            const best = {};
-            COLUMNS.forEach(([key, , , , higher]) => {
-              const values = names.map((name) => policies[name][key]?.mean).filter((v) => v !== null && v !== undefined);
-              best[key] = values.length && new Set(values).size > 1 ? (higher ? Math.max(...values) : Math.min(...values)) : null;
-            });
-            return (
-              <section className="card table-card" key={scenario}>
-                <div className="card-head">
-                  <div>
-                    <h2>{SCENARIO_LABELS[scenario] || scenario}</h2>
-                    <p className="card-sub">{names.length} strategies</p>
-                  </div>
-                </div>
-                <div className="table-scroll">
-                  <table className="exp-table">
-                    <thead>
-                      <tr>
-                        <th>Strategy</th>
-                        {COLUMNS.map(([key, label]) => <th key={key} className="num">{label}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {names.map((name) => (
-                        <tr key={name}>
-                          <td>{policyLabel(name)}</td>
-                          {COLUMNS.map(([key, , percent, digits]) => (
-                            <td key={key} className={`num ${policies[name][key]?.mean === best[key] ? "best-value" : ""}`}>
-                              {cell(policies[name], key, percent, digits)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  const [summary, setSummary] = useState(null);
+  const [metric, setMetric] = useState("cold_start_rate");
+  const [error, setError] = useState("");
+  useEffect(() => { const controller = new AbortController(); getSummary(controller.signal).then((data) => setSummary(data.summary || {})).catch((requestError) => setError(requestError.message)); return () => controller.abort(); }, []);
+  const selected = METRICS.find(([key]) => key === metric) || METRICS[0];
+  const scenarios = useMemo(() => Object.entries(summary || {}), [summary]);
+  return <section className="document-page"><p className="eyebrow">Experiments</p><h1>Experiment results</h1><p className="lede">Means and standard deviations are read from the API summary.</p><div className="metric-switcher">{METRICS.map(([key, label]) => <button className={`button ${metric === key ? "active-control" : ""}`} type="button" key={key} onClick={() => setMetric(key)}>{label}</button>)}</div>{error && <div className="notice" role="alert">{error}</div>}{!summary && !error && <div className="card loading-block" role="status">Loading experiment summary...</div>}{summary && scenarios.map(([scenario, policies]) => { const names = Object.keys(policies).sort((a, b) => order(a) - order(b) || a.localeCompare(b, undefined, { numeric: true })); const values = names.map((name) => policies[name][selected[0]]?.mean).filter((value) => Number.isFinite(value)); const low = values.length ? Math.min(...values) : 0; const high = values.length ? Math.max(...values) : 1; return <section className="card experiment-card" key={scenario}><div className="card-head"><h2>{scenario.replaceAll("_", " ")}</h2><span className="chart-note">{names.length} strategies</span></div><div className="table-scroll"><table className="data-table"><thead><tr><th>Strategy</th>{METRICS.map(([, label]) => <th key={label}>{label}</th>)}</tr></thead><tbody>{names.map((name) => <tr key={name}><th>{friendlyName(name)}</th>{METRICS.map(([key, , isPercent]) => <td className={key === selected[0] ? `heat-${Math.min(4, Math.max(0, Math.round(((policies[name][key]?.mean || low) - low) / Math.max(high - low, 0.000001) * 4)))}` : ""} key={key}>{display(policies[name][key], isPercent)}</td>)}</tr>)}</tbody></table></div></section>; })}</section>;
 }

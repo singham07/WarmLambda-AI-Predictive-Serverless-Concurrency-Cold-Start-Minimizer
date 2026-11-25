@@ -25,6 +25,9 @@ Lewis-Shedler thinning algorithm: generate a homogeneous Poisson process at
 ``Î»_max`` (numerically determined), then independently accept each candidate
 event with probability ``rate(t) / Î»_max``.
 
+The registry also includes ``scheduled_bursts`` (a predictable 600-second
+burst pattern) and ``daily_cycle`` (a predictable 1800-second cycle).
+
 Execution times
 ---------------
 Drawn from a log-normal distribution whose *mean* equals ``cfg.mean_exec_s``::
@@ -210,6 +213,68 @@ def _make_periodic(cfg: SimConfig, seed: int, randomize: bool = False) -> RateFn
     return rate_fn
 
 
+def _make_scheduled_bursts(
+    cfg: SimConfig, seed: int, randomize: bool = False
+) -> RateFn:
+    """Base 1 req/s with scheduled 12 req/s bursts every 600 s.
+
+    Bursts last 60 seconds, begin at 300 seconds, and have seed-dependent
+    start jitter of at most 5 seconds. Five-second linear ramps smooth edges.
+    """
+    rng = np.random.default_rng([seed, 20])
+    base = 1.0
+    if randomize:
+        base *= float(rng.uniform(0.9, 1.1))
+    jitter = rng.uniform(
+        -5.0, 5.0, size=max(1, int(math.ceil(cfg.duration_s / 600.0)))
+    )
+
+    def rate_fn(t: float) -> float:
+        value = base
+        for index, start_jitter in enumerate(jitter):
+            start = 300.0 + index * 600.0 + float(start_jitter)
+            end = start + 60.0
+            if start - 5.0 <= t < end + 5.0:
+                if t < start:
+                    fraction = (t - (start - 5.0)) / 5.0
+                elif t >= end:
+                    fraction = ((end + 5.0) - t) / 5.0
+                else:
+                    fraction = 1.0
+                value = max(value, base * (1.0 + 11.0 * max(0.0, min(1.0, fraction))))
+        return max(0.0, value)
+
+    return rate_fn
+
+
+def _make_daily_cycle(
+    cfg: SimConfig, seed: int, randomize: bool = False
+) -> RateFn:
+    """A compressed day with a 0.5 req/s trough and 20 req/s plateau."""
+    rng = np.random.default_rng([seed, 21])
+    n_blocks = max(1, int(math.ceil(cfg.duration_s / 60.0)))
+    noise = rng.uniform(0.97, 1.03, size=n_blocks)
+    peak = 20.0
+    if randomize:
+        peak *= float(rng.uniform(0.95, 1.05))
+
+    def rate_fn(t: float) -> float:
+        cycle_t = t % 1800.0
+        if cycle_t < 120.0:
+            fraction = cycle_t / 120.0
+        elif cycle_t < 720.0:
+            fraction = 1.0
+        elif cycle_t < 840.0:
+            fraction = 1.0 - (cycle_t - 720.0) / 120.0
+        else:
+            fraction = 0.0
+        value = 0.5 + (peak - 0.5) * fraction
+        block = min(n_blocks - 1, max(0, int(max(0.0, t) / 60.0)))
+        return max(0.0, value * float(noise[block]))
+
+    return rate_fn
+
+
 # ---------------------------------------------------------------------------
 # Scenario registry
 # ---------------------------------------------------------------------------
@@ -219,6 +284,8 @@ SCENARIOS: dict[str, Callable[..., RateFn]] = {
     "high_load": _make_high_load,
     "extreme": _make_extreme,
     "periodic": _make_periodic,
+    "scheduled_bursts": _make_scheduled_bursts,
+    "daily_cycle": _make_daily_cycle,
 }
 
 

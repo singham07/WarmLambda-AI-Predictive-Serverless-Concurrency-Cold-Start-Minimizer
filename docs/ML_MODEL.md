@@ -9,7 +9,7 @@ windows, EWMA levels at alpha 0.2 and 0.6, the last difference, the last-to-
 rolling-mean ratio, and sine/cosine encodings of the 30- and 60-window cycles.
 Rows are `float32`; the trace seed is retained as a group label.
 
-The default training command uses seeds 1000--1199 and all four scenarios with
+The default training command uses seeds 1000--1199 and all registered scenarios with
 randomized parameters. Dataset files are content-addressed under `data/` and
 can scale to millions of rows by supplying more seeds.
 

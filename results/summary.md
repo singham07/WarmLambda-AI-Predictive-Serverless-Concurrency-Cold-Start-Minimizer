@@ -1,6 +1,8 @@
 # WarmLambda AI: Benchmark Summary
 
-This document provides aggregated performance metrics across all 4 benchmark scenarios and 11 policy configurations evaluated over 5 random seeds (seeds 0 through 4) from `results/final_metrics.csv`.
+This document covers the legacy 60-second idle-timeout benchmark. For the
+scale-to-zero evaluation, see
+[`results/realistic_summary.md`](./realistic_summary.md).
 
 > [!NOTE]
 > All metrics represent simulated performance under idealized assumptions and dimensionless cost weights. They are not real AWS Lambda measurements.

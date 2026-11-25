@@ -25,7 +25,7 @@ def test_health() -> None:
 
 
 def test_scenarios() -> None:
-    """GET /scenarios returns all 4 valid scenario descriptions."""
+    """GET /scenarios returns every valid scenario description."""
     response = client.get("/scenarios")
     assert response.status_code == 200
     data = response.json()
@@ -217,3 +217,22 @@ def test_results_summary(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("backend.api.services.Path", lambda *args, **kwargs: missing_file)
     response_404 = client.get("/results/summary")
     assert response_404.status_code == 404
+
+
+@pytest.mark.parametrize("scenario", ["scheduled_bursts", "daily_cycle"])
+def test_compare_realistic_scenarios(scenario: str) -> None:
+    response = client.post(
+        "/compare",
+        json={
+            "scenario": scenario,
+            "policies": ["no_warming", "wl_full"],
+            "idle_timeout_s": 10.0,
+            "duration_s": 900.0,
+            "allow_short_runs": True,
+            "seed": 0,
+        },
+    )
+    assert response.status_code == 200
+    assert set(response.json()["results"]) == {"no_warming", "wl_full"}
+    for policy_result in response.json()["results"].values():
+        assert policy_result["capacity_plan"]

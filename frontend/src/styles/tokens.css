@@ -1,0 +1,7 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1217; --header: #0a0e12; --surface: #141b22; --surface-2: #1a232c; --surface-3: #212c37;
+  --line: #26323d; --line-strong: #364553; --text: #e6ebf0; --muted: #93a1ae; --dim: #6a7885;
+  --amber: #f0a23b; --cyan: #4cb5d6; --blue: #2f78c2; --green: #5cbf85; --red: #e5645f;
+  --sans: "IBM Plex Sans", sans-serif; --mono: "IBM Plex Mono", monospace;
+}

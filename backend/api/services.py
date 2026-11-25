@@ -46,13 +46,18 @@ class WarmLambdaHybridPolicy(Policy):
         warm_budget: Optional[int] = None,
         model: str = "ewma",
         xgboost_weight: float = 0.5,
+        seasonal_period_s: Optional[float] = None,
     ) -> None:
         self.mode = mode
         self.cfg = cfg
         self.headroom = float(headroom)
         self.warm_budget = warm_budget
         self.name = mode
-        self.forecaster = get_forecaster(model, xgboost_weight)
+        period_windows = (
+            max(1, round(seasonal_period_s / cfg.decision_interval_s))
+            if seasonal_period_s is not None else 60
+        )
+        self.forecaster = get_forecaster(model, xgboost_weight, period_windows)
         self.last_forecast_rate: Optional[float] = None
         self.last_budget_clamped = False
         self.forecast_history: dict[float, float] = {}
@@ -124,6 +129,7 @@ def instantiate_policy(
     warm_budget: Optional[int] = None,
     model: str = "ewma",
     xgboost_weight: float = 0.5,
+    seasonal_period_s: Optional[float] = None,
 ) -> tuple[Policy, Optional[dict[float, float]]]:
     """Create a policy instance and optionally return its forecast tracker."""
     forecast_tracker: Optional[dict[float, float]] = None
@@ -143,6 +149,7 @@ def instantiate_policy(
             warm_budget=warm_budget,
             model=model,
             xgboost_weight=xgboost_weight,
+            seasonal_period_s=seasonal_period_s,
         )
         forecast_tracker = p.forecast_history
         policy = p

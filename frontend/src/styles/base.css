@@ -1,0 +1,8 @@
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+#root { min-height: 100vh; }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--cyan); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, tr:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sr-only { height: 1px; overflow: hidden; position: absolute; width: 1px; clip: rect(0, 0, 0, 0); }

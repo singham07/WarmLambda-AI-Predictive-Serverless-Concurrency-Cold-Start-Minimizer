@@ -12,7 +12,10 @@ from backend.warmlambda.core.forecaster_registry import default_model_name
 
 DISCLAIMER: str = "Simulated estimates under stated assumptions; not real AWS costs."
 
-VALID_SCENARIOS = {"moderate", "high_load", "extreme", "periodic"}
+VALID_SCENARIOS = {
+    "moderate", "high_load", "extreme", "periodic",
+    "scheduled_bursts", "daily_cycle",
+}
 PolicyType = Literal[
     "no_warming",
     "fixed",

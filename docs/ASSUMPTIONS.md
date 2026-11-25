@@ -40,6 +40,11 @@ All traffic traces are generated using a non-homogeneous Poisson process (NHPP) 
 
 ---
 
+The realistic experiment adds `scheduled_bursts` and `daily_cycle`. It uses
+`idle_timeout_s=10.0` to model a scale-to-zero platform. Its seasonal
+forecaster is given the known cycle as a stated assumption: 600 seconds for
+`scheduled_bursts` and 1800 seconds for `daily_cycle`.
+
 ## 3. Policy Assumptions and Little's Law
 
 The WarmLambda predictive policy relies on Little's Law from queueing theory:
