@@ -169,6 +169,13 @@ class LastValueForecaster(Forecaster):
         return max(0.0, float(counts[-1] / window_s))
 
 
+class PersistenceForecaster(LastValueForecaster):
+    """Persistence baseline using the most recently completed window."""
+
+    def __init__(self) -> None:
+        self.name = "persistence"
+
+
 def bin_trace_to_windows(
     trace: list[Request],
     duration_s: float,

@@ -28,6 +28,9 @@ export function friendlyName(value) {
     wl_full: "WarmLambda full",
     wl_forecast_only: "Forecast only",
     wl_correction_only: "Correction only",
+    wl_littles_law: "Little's Law baseline",
+    wl_quantile_forecast_only: "Quantile forecast only",
+    wl_quantile_full: "Quantile hybrid",
     oracle: "Oracle",
   };
   return names[value] || value.replaceAll("_", " ");

@@ -104,37 +104,49 @@ class RidgeForecaster(Forecaster):
         return instance
 
 
-class XGBoostForecaster(Forecaster):
-    """XGBoost arrival-rate forecaster using the shared causal feature set."""
+class HGBForecaster(Forecaster):
+    """Histogram gradient-boosting forecaster backed by a joblib estimator."""
 
-    def __init__(self, k: int = 60, window_s: float = 10.0) -> None:
+    def __init__(
+        self,
+        quantile: Optional[float] = None,
+        k: int = 60,
+        window_s: float = 10.0,
+    ) -> None:
+        if quantile is not None and not 0.0 < quantile < 1.0:
+            raise ValueError(f"quantile must be between 0 and 1, got {quantile}")
+        self.quantile = quantile
         self.k = k
         self.window_s = window_s
-        self.name = "xgboost"
+        self.name = "hgb_q90" if quantile == 0.9 else "hgb"
         self.model: Any = None
 
-    def fit(self, X: np.ndarray, y: np.ndarray, groups: Optional[np.ndarray] = None) -> "XGBoostForecaster":
-        try:
-            from xgboost import XGBRegressor
-        except ImportError as exc:
-            raise RuntimeError("XGBoost is required to train this forecaster. Install the project requirements.") from exc
-        self.model = XGBRegressor(
-            objective="reg:squarederror",
-            n_estimators=300,
-            max_depth=6,
-            learning_rate=0.05,
-            subsample=0.85,
-            colsample_bytree=0.85,
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        groups: Optional[np.ndarray] = None,
+    ) -> "HGBForecaster":
+        from sklearn.ensemble import HistGradientBoostingRegressor
+
+        self.model = HistGradientBoostingRegressor(
+            loss="quantile" if self.quantile is not None else "squared_error",
+            quantile=self.quantile,
+            learning_rate=0.1,
+            max_iter=100,
+            max_leaf_nodes=15,
+            l2_regularization=1.0,
+            early_stopping=False,
             random_state=42,
-            n_jobs=1,
         )
         self.model.fit(np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.float32))
         return self
 
     def predict_features(self, X: np.ndarray) -> np.ndarray:
         if self.model is None:
-            raise RuntimeError("XGBoostForecaster must be fitted or loaded before prediction")
-        return np.maximum(0.0, np.asarray(self.model.predict(np.asarray(X, dtype=np.float32)), dtype=np.float64))
+            raise RuntimeError("HGBForecaster must be fitted or loaded before prediction")
+        predictions = self.model.predict(np.asarray(X, dtype=np.float32))
+        return np.maximum(0.0, np.asarray(predictions, dtype=np.float64))
 
     def predict(self, counts: list[int], window_s: float) -> float:
         features = counts_to_features(np.asarray(counts, dtype=np.float32), len(counts), self.k)
@@ -142,38 +154,24 @@ class XGBoostForecaster(Forecaster):
 
     def save(self, path: str | Path) -> None:
         if self.model is None:
-            raise RuntimeError("XGBoostForecaster must be fitted before saving")
-        self.model.save_model(str(path))
+            raise RuntimeError("HGBForecaster must be fitted before saving")
+        import joblib
+
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(self.model, path)
 
     @classmethod
-    def load(cls, path: str | Path) -> "XGBoostForecaster":
-        try:
-            from xgboost import XGBRegressor
-        except ImportError as exc:
-            raise RuntimeError("XGBoost is required to load this forecaster. Install the project requirements.") from exc
-        instance = cls()
-        instance.model = XGBRegressor()
-        instance.model.load_model(str(path))
+    def load(cls, path: str | Path) -> "HGBForecaster":
+        import joblib
+
+        model = joblib.load(path)
+        if not hasattr(model, "predict"):
+            raise TypeError(f"Model file {path} does not contain a prediction estimator")
+        quantile = getattr(model, "quantile", None) if getattr(model, "loss", None) == "quantile" else None
+        instance = cls(quantile=quantile)
+        instance.model = model
         return instance
-
-
-class EWMAXGBoostForecaster(Forecaster):
-    """Weighted ensemble of a reactive EWMA and a trained XGBoost forecast."""
-
-    def __init__(self, xgboost_weight: float = 0.5) -> None:
-        if not 0.0 <= xgboost_weight <= 1.0:
-            raise ValueError("xgboost_weight must be between 0 and 1")
-        self.ewma = EWMAForecaster(alpha=0.4)
-        self.xgboost = XGBoostForecaster.load(
-            Path(__file__).resolve().parents[3] / "models" / "xgboost.json"
-        )
-        self.xgboost_weight = float(xgboost_weight)
-        self.name = f"ewma_xgboost_{self.xgboost_weight:g}"
-
-    def predict(self, counts: list[int], window_s: float) -> float:
-        ewma_rate = self.ewma.predict(counts, window_s)
-        xgb_rate = self.xgboost.predict(counts, window_s)
-        return (1.0 - self.xgboost_weight) * ewma_rate + self.xgboost_weight * xgb_rate
 
 
 class GRUForecaster(Forecaster):
@@ -221,7 +219,7 @@ class GRUForecaster(Forecaster):
 
     def predict(self, counts: list[int], window_s: float) -> float:
         if self.model is None:
-            return 0.0
+            raise RuntimeError("GRUForecaster must be fitted or loaded before prediction")
         padded = counts_to_features(np.asarray(counts, dtype=np.float32), len(counts), self.k)[:self.k]
         scaled = np.log1p(np.maximum(padded, 0)) / self.input_scale
         value = float(self.model.predict(scaled.reshape(1, self.k, 1), verbose=0)[0, 0])
@@ -239,7 +237,10 @@ class GRUForecaster(Forecaster):
 
     @classmethod
     def load(cls, path: str | Path) -> "GRUForecaster":
-        import tensorflow as tf
+        try:
+            import tensorflow as tf
+        except ImportError as exc:
+            raise RuntimeError("GRUForecaster requires TensorFlow; install tensorflow-cpu to use it") from exc
         metadata_path = Path(path).with_suffix(".json")
         metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
         instance = cls(k=int(metadata.get("k", 60)), window_s=float(metadata.get("window_s", 10.0)))

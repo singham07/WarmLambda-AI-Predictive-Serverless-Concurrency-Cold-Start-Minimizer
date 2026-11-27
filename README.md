@@ -29,8 +29,8 @@ flowchart LR
 1. **Traffic Generator**: Produces realistic synthetic arrival traces via Non-Homogeneous Poisson Processes (NHPP) using the Lewis-Shedler thinning algorithm.
 2. **Simulator Engine**: A discrete-event execution queue that models container concurrency, instance state transitions, cold-start initialization delays, and request timeout drops.
 3. **Policy Subsystem**: Implements online warm-capacity algorithms:
-   - **Forecaster**: Predicts next-window arrival rates using EWMA or Seasonal Naive estimators without future-data leakage.
-   - **Capacity**: Applies Little's Law ($L = \lambda \cdot W$) plus a configurable headroom multiplier.
+   - **Forecaster**: Predicts next-window arrival rates using causal statistical or trained estimators.
+   - **Capacity**: Sizes capacity to a configurable Poisson demand quantile; Little's Law remains available as a baseline.
    - **Correction**: Reactively boosts capacity based on instantaneous queue length and busy instances.
    - **Budget**: Enforces maximum warm instance ceilings.
 4. **Metrics Computer**: Calculates cold-start rates, latency percentiles (p50, p95, p99), total weighted instance costs, resource utilization, and drop rates.
@@ -137,15 +137,15 @@ Run the automated simulation benchmark scripts directly from the repository root
    Output: `results/traffic_preview.png`.
 
 2. **Evaluate Traffic Forecasters**:
-   Benchmarks EWMA and Seasonal Naive estimators against arrival history:
+   Benchmarks statistical and trained estimators against arrival history:
    ```bash
    python -m experiments.eval_forecasters
    ```
    Output: `results/forecast_eval.csv`.
 
 3. **Train machine-learning forecasters**:
-   Builds a cached 288,000-row randomized dataset, trains Ridge and (when
-   TensorFlow is installed) GRU models using seed-group validation:
+   Builds a cached randomized dataset, trains HGB mean/q90 forecasters and
+   optionally a GRU when TensorFlow is installed, using seed-group validation:
    ```bash
    python -m experiments.train_forecasters
    ```
@@ -224,13 +224,14 @@ warmlambda/
 ├── docs/                      # Technical documentation
 │   ├── ASSUMPTIONS.md         # Simulation parameters, defaults, and scenario mappings
 │   ├── LIMITATIONS.md         # Differences from real AWS Lambda and explicit non-claims
-│   ├── REPORT_OUTLINE.md      # Research report outline and figure placements
 │   └── VALIDATION.md          # Test suite proofs, hand-computed cases, and correctness
 ├── experiments/               # Runnable benchmark and evaluation scripts
 │   ├── eval_forecasters.py    # Time-series forecaster evaluation
 │   ├── preview_traffic.py     # Traffic scenario generation and plotting
+│   ├── train_forecasters.py   # Train HGB and optional GRU models
 │   ├── run_baselines.py       # Baseline policy benchmarking
-│   └── run_forecast_policy.py # WarmLambda policy parameter sweep
+│   ├── run_forecast_policy.py # WarmLambda policy parameter sweep
+│   └── run_realistic.py       # Scale-to-zero policy comparison
 ├── frontend/                  # React dashboard application
 │   ├── public/                # Static assets and favicon.svg
 │   ├── scripts/               # Constraint checker (check.mjs)

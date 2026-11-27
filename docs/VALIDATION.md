@@ -12,7 +12,7 @@ pytest
 
 ## 1. Hand-Computed Ground-Truth Verification
 
-To ensure that the discrete-event simulation engine behaves exactly according to queueing theory, hand-computed scenarios with analytically determined latencies are verified in [tests/test_simulator.py](file:///c:/warmlambda/tests/test_simulator.py):
+To ensure that the discrete-event simulation engine behaves exactly according to queueing theory, hand-computed scenarios with analytically determined latencies are verified In [tests/test_simulator.py](../tests/test_simulator.py):
 
 ### Case 1: Single Request Cold Start
 - **Input**: One request arriving at $t = 0.0$ s with execution duration $0.5$ s and `init_time_s = 1.0` s.
@@ -49,7 +49,7 @@ To ensure that the discrete-event simulation engine behaves exactly according to
 
 ## 2. Conservation of Requests and Resources
 
-In [tests/test_simulator.py](file:///c:/warmlambda/tests/test_simulator.py), the simulator enforces strict physical conservation laws:
+In [tests/test_simulator.py](../tests/test_simulator.py), the simulator enforces strict physical conservation laws:
 
 1. **Request Conservation**:
    For any trace of $N$ input requests:
@@ -65,7 +65,7 @@ In [tests/test_simulator.py](file:///c:/warmlambda/tests/test_simulator.py), the
 
 ## 3. Monotonicity of Fixed Warming
 
-In [tests/test_policies.py](file:///c:/warmlambda/tests/test_policies.py) (`TestFixedMonotonicity`):
+In [tests/test_policies.py](../tests/test_policies.py) (`TestFixedMonotonicity`):
 
 - **Hypothesis**: For a given fixed traffic trace, systematically increasing the number of pre-warmed instances ($n \in \{0, 1, 2, 5, 10, 20\}$) must not increase the overall cold start count.
 - **Verification**: The test executes `FixedWarming(n)` on identical traces generated under the `moderate` scenario. The cold start count monotonically decreases as $n$ increases:
@@ -76,7 +76,7 @@ In [tests/test_policies.py](file:///c:/warmlambda/tests/test_policies.py) (`Test
 
 ## 4. Strict Proof of No Future Data Leakage
 
-To guarantee that predictive policies do not cheat by inspecting future requests, [tests/test_no_future_leak.py](file:///c:/warmlambda/tests/test_no_future_leak.py) conducts a causal perturbation proof:
+To guarantee that predictive policies do not cheat by inspecting future requests, [tests/test_no_future_leak.py](../tests/test_no_future_leak.py) conducts a causal perturbation proof:
 
 1. **Baseline Run**: Generate a realistic 200 s trace under the `moderate` scenario. Run `WarmLambdaPolicy` and record all decision ticks up to $T = 60.0$ s.
 2. **Future Perturbation**:
@@ -92,7 +92,7 @@ To guarantee that predictive policies do not cheat by inspecting future requests
 
 ## 5. Determinism and Reproducibility by Seed
 
-In [tests/test_traffic.py](file:///c:/warmlambda/tests/test_traffic.py):
+In [tests/test_traffic.py](../tests/test_traffic.py):
 
 1. **Seed Invariance**:
    For any scenario and configuration, executing `generate_trace(scenario, cfg, seed)` with the same integer seed produces identical request counts, timestamps, and execution durations:

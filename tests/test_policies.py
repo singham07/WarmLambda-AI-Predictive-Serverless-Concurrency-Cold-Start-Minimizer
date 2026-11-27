@@ -10,6 +10,7 @@ import math
 
 import pytest
 
+from backend.api.services import instantiate_policy
 from backend.warmlambda.core.config import SimConfig
 from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
 from backend.warmlambda.core.policies.fixed import FixedWarming
@@ -185,10 +186,8 @@ class TestOracle:
         assert oracle.name == "oracle"
         h = _hist()
         s = _state(now=5.0)  # before the arrival at t=10
-        # Lookahead window = 2 * 20 = 40s, so t=10 is in [5, 45)
         target = oracle.decide(h, s)
         assert target >= 0
-        # With 1 arrival in 40s, rate=0.025, target = ceil(0.025 * 0.2 * 1.2) = 1
         assert target == 1
 
     def test_decide_after_arrival(self) -> None:
@@ -198,5 +197,75 @@ class TestOracle:
         h = _hist()
         s = _state(now=15.0)  # after the arrival
         target = oracle.decide(h, s)
-        # No future arrivals in [15, 55)
         assert target == 0
+
+    def test_target_is_next_interval_peak_concurrent_capacity(self) -> None:
+        cfg = _cfg(
+            duration_s=20.0,
+            decision_interval_s=5.0,
+        )
+        trace = [
+            Request(0, 0.1, 4.9),
+            Request(1, 0.2, 4.8),
+            Request(2, 7.0, 1.0),
+        ]
+        oracle = Oracle(trace, cfg)
+        assert oracle.decide(_hist(), _state(now=0.0)) == 2
+        assert oracle.decide(_hist(), _state(now=5.0)) == 1
+
+    def test_unaligned_interval_includes_demand_already_active_at_start(self) -> None:
+        cfg = _cfg(duration_s=20.0, decision_interval_s=5.0)
+        trace = [Request(0, 1.0, 5.0)]
+        oracle = Oracle(trace, cfg)
+        assert oracle.decide(_hist(), _state(now=3.0)) == 1
+
+    def test_unaligned_interval_excludes_demand_ending_at_start(self) -> None:
+        cfg = _cfg(duration_s=20.0, decision_interval_s=5.0)
+        trace = [Request(0, 1.0, 2.0)]
+        oracle = Oracle(trace, cfg)
+        assert oracle.decide(_hist(), _state(now=3.0)) == 0
+
+    def test_oracle_has_no_more_cold_starts_than_causal_policies(self) -> None:
+        cfg = _cfg(
+            duration_s=20.0,
+            decision_interval_s=5.0,
+            init_time_s=1.0,
+            idle_timeout_s=30.0,
+        )
+        trace = [
+            Request(0, 0.5, 2.0),
+            Request(1, 0.7, 1.0),
+            Request(2, 7.0, 2.0),
+            Request(3, 7.3, 1.0),
+        ]
+        oracle_result = simulate(trace, Oracle(trace, cfg), cfg)
+        oracle_cold_starts = sum(
+            request.cold and not request.dropped for request in oracle_result.requests
+        )
+
+        causal_policy_names = (
+            "no_warming",
+            "fixed",
+            "reactive",
+            "wl_forecast_only",
+            "wl_correction_only",
+            "wl_full",
+            "wl_littles_law",
+            "wl_quantile_forecast_only",
+            "wl_quantile_full",
+        )
+        for policy_name in causal_policy_names:
+            policy, _ = instantiate_policy(
+                policy_name,
+                trace,
+                cfg,
+                fixed_n=2,
+                model="ewma",
+            )
+            result = simulate(trace, policy, cfg)
+            cold_starts = sum(
+                request.cold and not request.dropped for request in result.requests
+            )
+            assert oracle_cold_starts <= cold_starts, policy_name
+
+        assert oracle_cold_starts == 0

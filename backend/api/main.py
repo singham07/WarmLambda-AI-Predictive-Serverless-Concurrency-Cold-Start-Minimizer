@@ -141,12 +141,11 @@ def get_policies() -> PoliciesResponse:
         ),
         PolicyItem(
             name="wl_forecast_only",
-            description="WarmLambda proactive sizing using EWMA arrival rate forecasting and Little's Law.",
+            description="WarmLambda proactive sizing using a forecast and Little's Law.",
             parameters={
                 "headroom": "Proactive safety margin multiplier above Little's Law (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
-                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
             },
         ),
         PolicyItem(
@@ -155,8 +154,7 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Headroom margin multiplier on current concurrency (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
-                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
             },
         ),
         PolicyItem(
@@ -165,13 +163,37 @@ def get_policies() -> PoliciesResponse:
             parameters={
                 "headroom": "Safety margin multiplier on both forecast and load (float >= 0.0, default 0.5)",
                 "warm_budget": "Optional ceiling capping max warm instances (int >= 0)",
-                "model": "Forecaster model name, including ewma_xgboost for the weighted ensemble.",
-                "xgboost_weight": "XGBoost share when model is ewma_xgboost, from 0.0 to 1.0.",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
+            },
+        ),
+        PolicyItem(
+            name="wl_littles_law",
+            description="Forecast-only baseline using Little's Law and the configured headroom.",
+            parameters={
+                "headroom": "Safety margin above mean concurrency (float >= 0.0, default 0.5)",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
+            },
+        ),
+        PolicyItem(
+            name="wl_quantile_forecast_only",
+            description="Forecast-only capacity from a Poisson concurrent-demand quantile.",
+            parameters={
+                "epsilon": "Maximum allowed Poisson overflow probability (float between 0 and 1, default 0.05)",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
+            },
+        ),
+        PolicyItem(
+            name="wl_quantile_full",
+            description="Poisson-quantile forecast capacity with reactive busy-plus-queue correction.",
+            parameters={
+                "epsilon": "Maximum allowed Poisson overflow probability (float between 0 and 1, default 0.05)",
+                "headroom": "Reactive correction margin (float >= 0.0, default 0.5)",
+                "model": "hgb, hgb_q90, ewma, ewma_trend, seasonal, persistence, or gru.",
             },
         ),
         PolicyItem(
             name="oracle",
-            description="Theoretical upper bound that peeks 2 decision intervals into true future arrivals (unreachable in practice).",
+            description="Unreachable upper bound that uses future arrival and execution times, with idealized instant provisioning, for the next interval's peak demand.",
             parameters={},
         ),
     ]
@@ -200,6 +222,7 @@ def compare_policies(req: CompareRequest) -> CompareResponse:
     results_map: dict[str, PolicyRunResult] = {
         pol_name: PolicyRunResult(
             metrics=data["metrics"],
+            active_forecaster=data["active_forecaster"],
             intervals=data["intervals"],
             capacity_plan=data["capacity_plan"],
             summary=data["summary"],

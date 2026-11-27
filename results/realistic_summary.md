@@ -1,6 +1,6 @@
 # Realistic scale-to-zero evaluation
 
-The 10-second idle timeout models scale-to-zero platforms. Seasonal forecasting is given the known scenario cycle (600 s or 1800 s).
+The 10-second idle timeout models scale-to-zero platforms. Seasonal forecasting is given the known scenario cycle (600 s or 1800 s). The Oracle uses future trace data and instantaneous provisioning; it is an unattainable upper bound, not a deployable policy.
 
 ## scheduled_bursts
 
@@ -12,13 +12,16 @@ The 10-second idle timeout models scale-to-zero platforms. Seasonal forecasting 
 | fixed_10 | 1.6500 ± 1.2359 | 0.0002 ± 0.0002 | 0.4000 ± 0.5831 | 0.5626 ± 0.0174 | 0.0186 ± 0.0014 | 0.9972 ± 0.0121 | 36032.1923 ± 32.2263 | 0.0440 ± 0.0005 |
 | reactive | 181.0000 ± 10.2372 | 0.0229 ± 0.0013 | 50.8000 ± 10.1223 | 0.9901 ± 0.1615 | 0.0409 ± 0.0021 | 0.6903 ± 0.1070 | 10370.1982 ± 203.1957 | 0.1529 ± 0.0030 |
 | wl_forecast_only_seasonal | 196.6000 ± 10.1804 | 0.0248 ± 0.0013 | 49.3000 ± 8.2164 | 0.9729 ± 0.1596 | 0.0428 ± 0.0020 | 0.6625 ± 0.1255 | 9935.3458 ± 120.1397 | 0.1596 ± 0.0021 |
+| wl_littles_law_seasonal | 196.6000 ± 10.1804 | 0.0248 ± 0.0013 | 49.3000 ± 8.2164 | 0.9729 ± 0.1596 | 0.0428 ± 0.0020 | 0.6625 ± 0.1255 | 9935.3458 ± 120.1397 | 0.1596 ± 0.0021 |
+| wl_quantile_forecast_only_seasonal | 186.7000 ± 9.9905 | 0.0236 ± 0.0013 | 41.9500 ± 8.5175 | 0.8459 ± 0.1718 | 0.0416 ± 0.0020 | 0.6681 ± 0.1345 | 10035.3344 ± 125.5384 | 0.1580 ± 0.0022 |
+| wl_quantile_full_seasonal | 166.4000 ± 8.3030 | 0.0210 ± 0.0011 | 39.6500 ± 8.2781 | 0.8021 ± 0.1459 | 0.0391 ± 0.0018 | 0.6875 ± 0.1300 | 10297.2442 ± 159.4124 | 0.1540 ± 0.0025 |
 | wl_full_seasonal | 173.6000 ± 8.0647 | 0.0219 ± 0.0010 | 45.1000 ± 7.8607 | 0.9144 ± 0.1781 | 0.0399 ± 0.0017 | 0.6819 ± 0.1203 | 10221.9967 ± 157.8985 | 0.1551 ± 0.0026 |
 | wl_full_ewma | 172.5500 ± 9.1568 | 0.0218 ± 0.0012 | 51.1500 ± 8.4869 | 1.0053 ± 0.1527 | 0.0398 ± 0.0018 | 0.6833 ± 0.1102 | 10335.9892 ± 167.0956 | 0.1534 ± 0.0026 |
-| oracle | 199.8500 ± 10.0512 | 0.0252 ± 0.0013 | 52.8500 ± 8.4751 | 1.0390 ± 0.1328 | 0.0431 ± 0.0020 | 0.6875 ± 0.1251 | 9898.0038 ± 131.4671 | 0.1602 ± 0.0021 |
+| oracle | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.5616 ± 0.0179 | 0.0184 ± 0.0014 | 0.7389 ± 0.1081 | 11566.8162 ± 169.9336 | 0.1371 ± 0.0023 |
 
 ### Findings
-- Fewest burst cold starts: **fixed_10** (0.40 mean).
-- Cost difference versus no_warming: 26214.32 units.
+- Fewest burst cold starts: **oracle** (0.00 mean).
+- Cost difference versus no_warming: 1748.95 units.
 - Cost per avoided burst cold start for wl_full_seasonal versus fixed_10: not applicable.
 - wl_full beats no_warming on burst cold starts at comparable cost.
 
@@ -32,13 +35,16 @@ The 10-second idle timeout models scale-to-zero platforms. Seasonal forecasting 
 | fixed_10 | 25.2000 ± 4.0324 | 0.0008 ± 0.0001 | 24.8000 ± 4.0075 | 0.5763 ± 0.0067 | 0.0198 ± 0.0007 | 0.8250 ± 0.2385 | 38880.2967 ± 168.6343 | 0.1539 ± 0.0010 |
 | reactive | 172.7000 ± 11.3274 | 0.0058 ± 0.0004 | 115.5000 ± 10.8420 | 0.6212 ± 0.0110 | 0.0247 ± 0.0007 | 0.8000 ± 0.2318 | 19869.9323 ± 295.3571 | 0.3012 ± 0.0042 |
 | wl_forecast_only_seasonal | 179.4000 ± 8.5697 | 0.0060 ± 0.0003 | 119.4500 ± 8.2612 | 0.6237 ± 0.0102 | 0.0249 ± 0.0007 | 0.8000 ± 0.2318 | 19428.0242 ± 193.9769 | 0.3081 ± 0.0034 |
+| wl_littles_law_seasonal | 179.4000 ± 8.5697 | 0.0060 ± 0.0003 | 119.4500 ± 8.2612 | 0.6237 ± 0.0102 | 0.0249 ± 0.0007 | 0.8000 ± 0.2318 | 19428.0242 ± 193.9769 | 0.3081 ± 0.0034 |
+| wl_quantile_forecast_only_seasonal | 153.0000 ± 8.0623 | 0.0051 ± 0.0003 | 93.6500 ± 7.6569 | 0.6083 ± 0.0099 | 0.0240 ± 0.0007 | 0.8000 ± 0.2318 | 19769.3156 ± 174.7267 | 0.3027 ± 0.0031 |
+| wl_quantile_full_seasonal | 133.1000 ± 9.8534 | 0.0045 ± 0.0003 | 79.9000 ± 8.3600 | 0.6014 ± 0.0102 | 0.0233 ± 0.0008 | 0.8000 ± 0.2318 | 20245.2787 ± 221.8609 | 0.2956 ± 0.0032 |
 | wl_full_seasonal | 151.0000 ± 9.1924 | 0.0051 ± 0.0003 | 97.3500 ± 8.1809 | 0.6106 ± 0.0105 | 0.0239 ± 0.0007 | 0.8000 ± 0.2318 | 20006.8276 ± 256.5567 | 0.2992 ± 0.0036 |
 | wl_full_ewma | 148.9000 ± 8.4965 | 0.0050 ± 0.0003 | 97.9000 ± 8.2879 | 0.6107 ± 0.0104 | 0.0239 ± 0.0007 | 0.8000 ± 0.2318 | 20118.1789 ± 257.4690 | 0.2975 ± 0.0036 |
-| oracle | 206.7500 ± 9.9994 | 0.0069 ± 0.0003 | 146.8000 ± 9.5687 | 0.6420 ± 0.0118 | 0.0258 ± 0.0007 | 0.8000 ± 0.2318 | 19215.5332 ± 196.0275 | 0.3115 ± 0.0034 |
+| oracle | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.5669 ± 0.0059 | 0.0190 ± 0.0006 | 0.8000 ± 0.2574 | 22375.0905 ± 239.8176 | 0.2675 ± 0.0034 |
 
 ### Findings
-- Fewest burst cold starts: **fixed_10** (24.80 mean).
-- Cost difference versus no_warming: 19829.96 units.
+- Fewest burst cold starts: **oracle** (0.00 mean).
+- Cost difference versus no_warming: 3324.75 units.
 - Cost per avoided burst cold start for wl_full_seasonal versus fixed_10: not applicable.
 - wl_full beats no_warming on burst cold starts at comparable cost.
 

@@ -7,4 +7,6 @@ uvicorn
 pydantic
 httpx
 tensorflow-cpu
-xgboost
+scikit-learn
+joblib
+scipy

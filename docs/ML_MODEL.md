@@ -15,11 +15,13 @@ can scale to millions of rows by supplying more seeds.
 
 ## Models and leakage controls
 
-`RidgeForecaster` uses standardized causal features and NumPy ridge regression.
-The `ridge_q90` variant adds the 90th percentile of training residuals to
-produce a conservative capacity forecast. `GRUForecaster` remains an optional
-TensorFlow/Keras model. Every model's runtime `predict` method constructs
-features from the supplied history only.
+`HGBForecaster` uses a scikit-learn histogram gradient-boosting estimator.
+`hgb_q90` is trained with quantile loss at 0.9 and can provide a conservative
+rate forecast. `GRUForecaster` is optional and requires TensorFlow/Keras.
+EWMA, EWMA-with-trend, seasonal-naive, and persistence forecasters are
+available without model artifacts. Every model's runtime `predict` method
+constructs features from the supplied history only. Missing trained artifacts
+raise a clear error; there is no implicit EWMA fallback.
 
 Training and validation are split by complete seed groups: no seed appears in
 both side of the split. Evaluation uses standard seeds 0--19 without
@@ -41,8 +43,8 @@ under-prediction rate, and q90 pinball loss per scenario and dataset.
 The authoritative results are the table printed by the evaluation command and
 the accompanying CSV; they must be regenerated after changing training data.
 Accuracy is judged on unseen complete seed groups, never on training rows.
-Compare `ridge` and `ridge_q90` against EWMA using MAE and sMAPE, and inspect
-under-prediction rate and pinball loss for `ridge_q90`. A lower forecast error
+Compare `hgb` and `hgb_q90` against statistical baselines using MAE and sMAPE,
+and inspect under-prediction rate and pinball loss for `hgb_q90`. A lower forecast error
 does not automatically mean a better capacity policy: also compare cold
 starts, queue timeouts, and cost in the simulation results. The project does
 not claim model superiority unless held-out metrics demonstrate it for the

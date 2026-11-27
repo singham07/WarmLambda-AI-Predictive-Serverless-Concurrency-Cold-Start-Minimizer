@@ -54,6 +54,12 @@ class TestDefaults:
     def test_decision_interval_s(self) -> None:
         assert self.cfg.decision_interval_s == 20.0
 
+    @pytest.mark.parametrize("interval_s", [1.0, 5.0, 10.0, 20.0])
+    def test_decision_interval_and_derived_lead_time(self, interval_s: float) -> None:
+        cfg = SimConfig(decision_interval_s=interval_s)
+        assert cfg.decision_interval_s == interval_s
+        assert cfg.lead_time_s == cfg.init_time_s + interval_s
+
     def test_warm_cost_weight(self) -> None:
         assert self.cfg.warm_cost_weight == 1.0
 
@@ -158,6 +164,14 @@ class TestValidation:
     def test_negative_init_time_raises(self) -> None:
         with pytest.raises(ValueError, match="init_time_s"):
             SimConfig(init_time_s=-0.1)
+
+    def test_lead_time_must_match_provisioning_components(self) -> None:
+        with pytest.raises(ValueError, match="lead_time_s"):
+            SimConfig(decision_interval_s=5.0, lead_time_s=5.0)
+
+    def test_nonpositive_lead_time_raises(self) -> None:
+        with pytest.raises(ValueError, match="lead_time_s"):
+            SimConfig(lead_time_s=0.0)
 
     @pytest.mark.parametrize("bad_value", [0, -1, -100])
     def test_max_instances_too_small_raises(self, bad_value: int) -> None:

@@ -54,6 +54,9 @@ def test_policies() -> None:
         "wl_forecast_only",
         "wl_correction_only",
         "wl_full",
+        "wl_littles_law",
+        "wl_quantile_forecast_only",
+        "wl_quantile_full",
         "oracle",
     }
     assert expected.issubset(policy_names)
@@ -68,6 +71,9 @@ def test_policies() -> None:
         "wl_forecast_only",
         "wl_correction_only",
         "wl_full",
+        "wl_littles_law",
+        "wl_quantile_forecast_only",
+        "wl_quantile_full",
         "oracle",
     ],
 )
@@ -90,6 +96,15 @@ def test_run_per_policy(policy: str) -> None:
     assert "config" in data
     assert "metrics" in data
     assert "intervals" in data
+    if policy in {
+        "wl_forecast_only",
+        "wl_full",
+        "wl_correction_only",
+        "wl_littles_law",
+        "wl_quantile_forecast_only",
+        "wl_quantile_full",
+    }:
+        assert data["config"]["active_forecaster"] == "hgb_q90"
 
     # Check metrics keys
     metrics = data["metrics"]
@@ -164,6 +179,24 @@ def test_api_default_duration_is_one_hour() -> None:
     )
     assert response.status_code == 200
     assert response.json()["config"]["duration_s"] == 3600.0
+
+
+def test_api_accepts_configurable_decision_interval_and_epsilon() -> None:
+    response = client.post(
+        "/run",
+        json={
+            "scenario": "moderate",
+            "policy": "wl_quantile_forecast_only",
+            "duration_s": 100.0,
+            "allow_short_runs": True,
+            "decision_interval_s": 5.0,
+            "epsilon": 0.1,
+        },
+    )
+    assert response.status_code == 200
+    config = response.json()["config"]
+    assert config["decision_interval_s"] == 5.0
+    assert config["lead_time_s"] == 6.0
 
 
 def test_compare_identical_traffic_totals() -> None:

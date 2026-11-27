@@ -1,7 +1,8 @@
 const defaults = {
   scenario: "scheduled_bursts", duration: 3600, policies: ["no_warming", "fixed", "reactive", "wl_full"],
-  seed: 42, initTime: 1, meanExec: 0.2, idleTimeout: 10, headroom: 0.5,
-  warmBudget: "", fixedN: 5, model: "ewma",
+  seed: 42, initTime: 1, meanExec: 0.2, idleTimeout: 10, decisionInterval: 20,
+  epsilon: 0.05, headroom: 0.5,
+  warmBudget: "", fixedN: 5, model: "hgb_q90",
 };
 
 function validNumber(value, fallback, min = -Infinity) {
@@ -20,6 +21,8 @@ export function readUrlState() {
     initTime: validNumber(params.get("initTime"), defaults.initTime, 0.001),
     meanExec: validNumber(params.get("meanExec"), defaults.meanExec, 0.001),
     idleTimeout: validNumber(params.get("idleTimeout"), defaults.idleTimeout, 0.1),
+    decisionInterval: validNumber(params.get("decisionInterval"), defaults.decisionInterval, 0.1),
+    epsilon: validProbability(params.get("epsilon"), defaults.epsilon),
     headroom: validNumber(params.get("headroom"), defaults.headroom, 0),
     warmBudget: params.get("warmBudget") || "",
     fixedN: validNumber(params.get("fixedN"), defaults.fixedN, 0),
@@ -34,6 +37,11 @@ export function writeUrlState(state) {
     else if (value !== "" && value !== null && value !== undefined) params.set(key, String(value));
   });
   window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+
+function validProbability(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 && parsed < 1 ? parsed : fallback;
 }
 
 export { defaults };

@@ -18,6 +18,7 @@ Example
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 
 
 @dataclass(frozen=True)
@@ -128,6 +129,9 @@ class SimConfig:
     busy_cost_weight: float = 1.0
     """Cost multiplier per busy-second (executing state)."""
 
+    lead_time_s: float | None = None
+    """Provisioning horizon; defaults to init_time_s + decision_interval_s."""
+
     # ------------------------------------------------------------------ #
     # Validation                                                           #
     # ------------------------------------------------------------------ #
@@ -152,15 +156,34 @@ class SimConfig:
             "busy_cost_weight": self.busy_cost_weight,
         }
         for name, value in positive_fields.items():
-            if value <= 0:
+            if not math.isfinite(value) or value <= 0:
                 raise ValueError(
-                    f"SimConfig.{name} must be > 0, got {value!r}."
+                    f"SimConfig.{name} must be finite and > 0, got {value!r}."
                 )
 
         # init_time_s may be 0 (instantaneous cold start) but not negative
-        if self.init_time_s < 0:
+        if not math.isfinite(self.init_time_s) or self.init_time_s < 0:
             raise ValueError(
-                f"SimConfig.init_time_s must be >= 0, got {self.init_time_s!r}."
+                f"SimConfig.init_time_s must be finite and >= 0, got {self.init_time_s!r}."
+            )
+
+        expected_lead_time = self.init_time_s + self.decision_interval_s
+        if self.lead_time_s is None:
+            if not math.isfinite(expected_lead_time):
+                raise ValueError(
+                    "SimConfig.lead_time_s must be finite, got "
+                    f"{expected_lead_time!r}."
+                )
+            object.__setattr__(self, "lead_time_s", expected_lead_time)
+        elif (
+            not math.isfinite(self.lead_time_s)
+            or self.lead_time_s <= 0.0
+            or not math.isclose(self.lead_time_s, expected_lead_time)
+        ):
+            raise ValueError(
+                "SimConfig.lead_time_s must be finite, > 0, and equal "
+                f"init_time_s + decision_interval_s ({expected_lead_time!r}), "
+                f"got {self.lead_time_s!r}."
             )
 
         # max_instances must be at least 1

@@ -288,7 +288,11 @@ def simulate(
             inst_init_enter[iid] = now
 
     # ----- helper: create a new instance (cold start) -----
-    def _create_instance(now: float, pending_req_id: int = -1) -> _Instance:
+    def _create_instance(
+        now: float,
+        pending_req_id: int = -1,
+        ready_immediately: bool = False,
+    ) -> _Instance:
         nonlocal next_instance_id, policy_created_instances, on_demand_created_instances
         if pending_req_id >= 0:
             on_demand_created_instances += 1
@@ -298,17 +302,29 @@ def simulate(
         next_instance_id += 1
         inst = _Instance(
             id=iid,
-            state=_InstanceState.INITIALIZING,
+            state=(
+                _InstanceState.IDLE
+                if ready_immediately
+                else _InstanceState.INITIALIZING
+            ),
+            idle_since=now if ready_immediately else 0.0,
             pending_request_id=pending_req_id,
         )
         instances[iid] = inst
-        inst_init_enter[iid] = now
-        # Schedule INSTANCE_READY event
-        heapq.heappush(heap, _Event(
-            time=now + cfg.init_time_s,
-            kind=_EventType.INSTANCE_READY,
-            instance_id=iid,
-        ))
+        if ready_immediately:
+            inst_idle_enter[iid] = now
+            heapq.heappush(heap, _Event(
+                time=now + cfg.idle_timeout_s,
+                kind=_EventType.IDLE_EXPIRY_CHECK,
+                instance_id=iid,
+            ))
+        else:
+            inst_init_enter[iid] = now
+            heapq.heappush(heap, _Event(
+                time=now + cfg.init_time_s,
+                kind=_EventType.INSTANCE_READY,
+                instance_id=iid,
+            ))
         return inst
 
     # ----- helper: remove an instance -----
@@ -584,7 +600,12 @@ def simulate(
             if new_target > total:
                 for _ in range(new_target - total):
                     if _total_instances() < cfg.max_instances:
-                        _create_instance(now)
+                        _create_instance(
+                            now,
+                            ready_immediately=getattr(
+                                policy, "instant_provisioning", False
+                            ),
+                        )
 
     # ----- build final SimResult -----
     # Flush remaining instance times at the end of simulation

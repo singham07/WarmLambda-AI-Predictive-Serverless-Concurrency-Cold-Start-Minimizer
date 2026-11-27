@@ -23,6 +23,9 @@ PolicyType = Literal[
     "wl_forecast_only",
     "wl_correction_only",
     "wl_full",
+    "wl_littles_law",
+    "wl_quantile_forecast_only",
+    "wl_quantile_full",
     "oracle",
 ]
 
@@ -61,9 +64,9 @@ class RunRequest(BaseModel):
     policy: PolicyType = Field(..., description="Warming policy type")
     fixed_n: Optional[int] = Field(default=None, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
+    epsilon: float = Field(default=0.05, gt=0.0, lt=1.0, description="Maximum Poisson overflow probability")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
     model: str = Field(default_factory=default_model_name, description="Forecaster name")
-    xgboost_weight: float = Field(default=0.5, ge=0.0, le=1.0, description="XGBoost share in the EWMA/XGBoost ensemble")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides
@@ -73,6 +76,7 @@ class RunRequest(BaseModel):
     allow_short_runs: bool = Field(default=False, description="Allow diagnostic runs shorter than 600 seconds")
     idle_timeout_s: Optional[float] = Field(default=None, gt=0.0, description="Idle instance timeout")
     max_instances: Optional[int] = Field(default=None, ge=1, le=10000, description="Max concurrent instance limit")
+    decision_interval_s: Optional[float] = Field(default=None, gt=0.0, description="Policy decision interval in seconds")
 
     @model_validator(mode="after")
     def validate_duration(self) -> "RunRequest":
@@ -112,9 +116,9 @@ class CompareRequest(BaseModel):
     )
     fixed_n: Optional[int] = Field(default=5, ge=0, description="Instances for fixed policy")
     headroom: float = Field(default=0.5, ge=0.0, le=10.0, description="Safety headroom margin")
+    epsilon: float = Field(default=0.05, gt=0.0, lt=1.0, description="Maximum Poisson overflow probability")
     warm_budget: Optional[int] = Field(default=None, ge=0, description="Max warm instance ceiling")
     model: str = Field(default_factory=default_model_name, description="Forecaster name")
-    xgboost_weight: float = Field(default=0.5, ge=0.0, le=1.0, description="XGBoost share in the EWMA/XGBoost ensemble")
     seed: int = Field(default=42, ge=0, description="PRNG seed for trace reproducibility")
 
     # Optional SimConfig overrides
@@ -124,6 +128,7 @@ class CompareRequest(BaseModel):
     allow_short_runs: bool = Field(default=False, description="Allow diagnostic runs shorter than 600 seconds")
     idle_timeout_s: Optional[float] = Field(default=None, gt=0.0)
     max_instances: Optional[int] = Field(default=None, ge=1, le=10000)
+    decision_interval_s: Optional[float] = Field(default=None, gt=0.0)
 
     @model_validator(mode="after")
     def validate_duration(self) -> "CompareRequest":
@@ -179,6 +184,7 @@ class RunResponse(BaseResponse):
 
 class PolicyRunResult(BaseModel):
     metrics: dict[str, Any]
+    active_forecaster: Optional[str] = None
     intervals: list[IntervalPoint]
     capacity_plan: list[CapacityPlanPoint]
     summary: dict[str, Any]

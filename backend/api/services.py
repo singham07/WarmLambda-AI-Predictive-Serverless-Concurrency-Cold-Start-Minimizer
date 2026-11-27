@@ -15,9 +15,8 @@ import pandas as pd
 from fastapi import HTTPException
 
 from backend.api.schemas import CapacityPlanPoint, CompareRequest, IntervalPoint, RunRequest
-from backend.warmlambda.core.capacity import capacity_from_rate
+from backend.warmlambda.core.capacity import capacity_from_quantile, capacity_from_rate
 from backend.warmlambda.core.config import SimConfig
-from backend.warmlambda.core.forecaster import EWMAForecaster
 from backend.warmlambda.core.forecaster_registry import get_forecaster
 from backend.warmlambda.core.metrics import compute_metrics
 from backend.warmlambda.core.policies.base import Policy, SimState, TrafficHistory
@@ -36,6 +35,8 @@ class WarmLambdaHybridPolicy(Policy):
     - 'wl_forecast_only': Little's Law on EWMA arrival rate forecast.
     - 'wl_correction_only': Headroom applied reactively to current busy+queue load.
     - 'wl_full': Max of proactive forecast capacity and reactive concurrency load.
+    - 'wl_littles_law': Explicit Little's Law forecast-only baseline.
+    - 'wl_quantile_forecast_only' / 'wl_quantile_full': Poisson-quantile sizing.
     """
 
     def __init__(
@@ -45,25 +46,33 @@ class WarmLambdaHybridPolicy(Policy):
         headroom: float = 0.5,
         warm_budget: Optional[int] = None,
         model: str = "ewma",
-        xgboost_weight: float = 0.5,
+        epsilon: float = 0.05,
         seasonal_period_s: Optional[float] = None,
     ) -> None:
         self.mode = mode
         self.cfg = cfg
         self.headroom = float(headroom)
+        self.epsilon = float(epsilon)
         self.warm_budget = warm_budget
         self.name = mode
         period_windows = (
             max(1, round(seasonal_period_s / cfg.decision_interval_s))
             if seasonal_period_s is not None else 60
         )
-        self.forecaster = get_forecaster(model, xgboost_weight, period_windows)
+        self.forecaster = get_forecaster(model, period_windows)
         self.last_forecast_rate: Optional[float] = None
         self.last_budget_clamped = False
         self.forecast_history: dict[float, float] = {}
 
     def decide(self, history: TrafficHistory, state: SimState) -> int:
-        if not history.counts and self.mode in {"wl_forecast_only", "wl_full"}:
+        proactive_modes = {
+            "wl_forecast_only",
+            "wl_full",
+            "wl_littles_law",
+            "wl_quantile_forecast_only",
+            "wl_quantile_full",
+        }
+        if not history.counts and self.mode in proactive_modes:
             target = 1
             if self.warm_budget is not None:
                 self.last_budget_clamped = target > self.warm_budget
@@ -76,7 +85,7 @@ class WarmLambdaHybridPolicy(Policy):
         self.last_forecast_rate = rate
         self.forecast_history[history.now] = rate
 
-        if self.mode == "wl_forecast_only":
+        if self.mode in {"wl_forecast_only", "wl_littles_law"}:
             target = capacity_from_rate(
                 rate=rate,
                 mean_exec_s=self.cfg.mean_exec_s,
@@ -86,6 +95,18 @@ class WarmLambdaHybridPolicy(Policy):
         elif self.mode == "wl_correction_only":
             curr_load = state.busy_instances + state.queue_length
             target = math.ceil(curr_load * (1.0 + self.headroom))
+        elif self.mode in {"wl_quantile_forecast_only", "wl_quantile_full"}:
+            target = capacity_from_quantile(
+                rate=rate,
+                mean_exec_s=self.cfg.mean_exec_s,
+                max_instances=self.cfg.max_instances,
+                epsilon=self.epsilon,
+                lead_time_s=self.cfg.lead_time_s,
+            )
+            if self.mode == "wl_quantile_full":
+                curr_load = state.busy_instances + state.queue_length
+                corrected = math.ceil(curr_load * (1.0 + self.headroom))
+                target = max(target, corrected)
         else:  # wl_full
             cap_forecast = capacity_from_rate(
                 rate=rate,
@@ -97,7 +118,9 @@ class WarmLambdaHybridPolicy(Policy):
             cap_corr = math.ceil(curr_load * (1.0 + self.headroom))
             target = max(cap_forecast, cap_corr)
 
+        self.last_budget_clamped = False
         if self.warm_budget is not None:
+            self.last_budget_clamped = target > self.warm_budget
             target = min(target, self.warm_budget)
 
         return max(0, min(self.cfg.max_instances, target))
@@ -106,6 +129,8 @@ class WarmLambdaHybridPolicy(Policy):
 def build_config(req: RunRequest | CompareRequest) -> SimConfig:
     """Build a SimConfig applying any requested overrides."""
     kwargs: dict[str, Any] = {}
+    if req.decision_interval_s is not None:
+        kwargs["decision_interval_s"] = req.decision_interval_s
     if req.init_time_s is not None:
         kwargs["init_time_s"] = req.init_time_s
     if req.mean_exec_s is not None:
@@ -128,7 +153,7 @@ def instantiate_policy(
     headroom: float = 0.5,
     warm_budget: Optional[int] = None,
     model: str = "ewma",
-    xgboost_weight: float = 0.5,
+    epsilon: float = 0.05,
     seasonal_period_s: Optional[float] = None,
 ) -> tuple[Policy, Optional[dict[float, float]]]:
     """Create a policy instance and optionally return its forecast tracker."""
@@ -141,14 +166,21 @@ def instantiate_policy(
         policy = FixedWarming(n=n)
     elif policy_name == "reactive":
         policy = Reactive()
-    elif policy_name in ("wl_forecast_only", "wl_correction_only", "wl_full"):
+    elif policy_name in (
+        "wl_forecast_only",
+        "wl_correction_only",
+        "wl_full",
+        "wl_littles_law",
+        "wl_quantile_forecast_only",
+        "wl_quantile_full",
+    ):
         p = WarmLambdaHybridPolicy(
             mode=policy_name,
             cfg=cfg,
             headroom=headroom,
             warm_budget=warm_budget,
             model=model,
-            xgboost_weight=xgboost_weight,
+            epsilon=epsilon,
             seasonal_period_s=seasonal_period_s,
         )
         forecast_tracker = p.forecast_history
@@ -277,7 +309,7 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         headroom=req.headroom,
         warm_budget=req.warm_budget,
         model=req.model,
-        xgboost_weight=req.xgboost_weight,
+        epsilon=req.epsilon,
     )
 
     result = simulate(trace, policy, cfg)
@@ -301,6 +333,10 @@ def run_single_simulation(req: RunRequest) -> dict[str, Any]:
         "max_instances": cfg.max_instances,
         "concurrency_per_instance": cfg.concurrency_per_instance,
         "decision_interval_s": cfg.decision_interval_s,
+        "lead_time_s": cfg.lead_time_s,
+        "active_forecaster": getattr(
+            getattr(policy, "forecaster", None), "name", None
+        ),
         "warm_cost_weight": cfg.warm_cost_weight,
         "busy_cost_weight": cfg.busy_cost_weight,
     }
@@ -331,7 +367,7 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
             headroom=req.headroom,
             warm_budget=req.warm_budget,
             model=req.model,
-            xgboost_weight=req.xgboost_weight,
+            epsilon=req.epsilon,
         )
 
         result = simulate(trace, policy, cfg)
@@ -348,6 +384,9 @@ def run_comparison(req: CompareRequest) -> dict[str, Any]:
 
         results[pol_name] = {
             "metrics": metrics,
+            "active_forecaster": getattr(
+                getattr(policy, "forecaster", None), "name", None
+            ),
             "intervals": intervals,
             "capacity_plan": capacity_plan,
             "summary": summary,

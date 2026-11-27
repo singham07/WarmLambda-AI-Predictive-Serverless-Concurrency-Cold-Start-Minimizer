@@ -11,11 +11,13 @@ import { defaults, readUrlState, writeUrlState } from "../lib/urlState";
 
 const COLORS = {
   no_warming: "#8a97a3", fixed: "#4cb5d6", reactive: "#5cbf85", wl_full: "#f0a23b",
-  wl_forecast_only: "#d9c35c", wl_correction_only: "#e0805a", oracle: "#e6ebf0",
+  wl_forecast_only: "#d9c35c", wl_correction_only: "#e0805a", wl_littles_law: "#8a97a3",
+  wl_quantile_forecast_only: "#4cb5d6", wl_quantile_full: "#f0a23b", oracle: "#e6ebf0",
 };
 const TAGS = {
   no_warming: "baseline", fixed: "baseline", reactive: "baseline", wl_full: "proposed",
-  wl_forecast_only: "ablation", wl_correction_only: "ablation", oracle: "upper bound",
+  wl_forecast_only: "ablation", wl_correction_only: "ablation", wl_littles_law: "baseline",
+  wl_quantile_forecast_only: "quantile", wl_quantile_full: "proposed", oracle: "upper bound",
 };
 const LABELS = { scheduled_bursts: "Scheduled bursts", daily_cycle: "Daily cycle", moderate: "Moderate traffic", high_load: "High load", extreme: "Extreme spikes", periodic: "Repeating pattern" };
 const TAB_NAMES = ["Timeline", "Summary", "Compare", "Pareto", "Capacity plan"];
@@ -27,7 +29,8 @@ function requestPayload(state, policyList, policy) {
   return {
     scenario: state.scenario, policies: policyList, policy, duration_s: state.duration,
     seed: state.seed, init_time_s: state.initTime, mean_exec_s: state.meanExec,
-    idle_timeout_s: state.idleTimeout, headroom: state.headroom,
+    idle_timeout_s: state.idleTimeout, decision_interval_s: state.decisionInterval,
+    epsilon: state.epsilon, headroom: state.headroom,
     warm_budget: state.warmBudget === "" ? null : Number(state.warmBudget),
     fixed_n: state.fixedN, model: state.model,
   };
@@ -52,7 +55,7 @@ function ErrorBoundary({ children }) {
 
 function Controls({ state, setState, scenarios, policies, onRun, onCancel, running, error, onPareto }) {
   const update = (key, value) => setState((current) => ({ ...current, [key]: value }));
-  const available = policies.length ? policies : ["no_warming", "fixed", "reactive", "wl_full", "wl_forecast_only", "wl_correction_only", "oracle"];
+  const available = policies.length ? policies : ["no_warming", "fixed", "reactive", "wl_littles_law", "wl_full", "wl_quantile_forecast_only", "wl_quantile_full", "oracle"];
   return <aside className="controls" aria-label="Simulation settings">
     <div className="controls-section">
       <p className="eyebrow">Traffic</p>
@@ -79,10 +82,12 @@ function Controls({ state, setState, scenarios, policies, onRun, onCancel, runni
         <label>Cold start (s)<input type="number" step="0.1" value={state.initTime} onChange={(event) => update("initTime", Number(event.target.value))} /></label>
         <label>Run time (s)<input type="number" step="0.1" value={state.meanExec} onChange={(event) => update("meanExec", Number(event.target.value))} /></label>
         <label>Idle timeout (s)<input type="number" step="0.1" min="0.1" value={state.idleTimeout} onChange={(event) => update("idleTimeout", Number(event.target.value))} /></label>
+        <label>Decision interval (s)<select value={state.decisionInterval} onChange={(event) => update("decisionInterval", Number(event.target.value))}><option value="1">1</option><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></label>
+        <label>Quantile epsilon<input type="number" min="0.001" max="0.999" step="0.01" value={state.epsilon} onChange={(event) => update("epsilon", Number(event.target.value))} /></label>
         <label>Headroom<input type="number" step="0.1" value={state.headroom} onChange={(event) => update("headroom", Number(event.target.value))} /></label>
         <label>Warm budget<input type="number" min="0" value={state.warmBudget} onChange={(event) => update("warmBudget", event.target.value)} placeholder="None" /></label>
         <label>Fixed instances<input type="number" min="0" value={state.fixedN} onChange={(event) => update("fixedN", Number(event.target.value))} /></label>
-        <label className="wide">Forecast model<select value={state.model} onChange={(event) => update("model", event.target.value)}><option value="ewma">EWMA</option><option value="seasonal">Seasonal</option><option value="ridge_q90">Ridge q90</option><option value="ridge">Ridge</option><option value="xgboost">XGBoost</option><option value="gru">GRU</option></select></label>
+        <label className="wide">Forecast model<select value={state.model} onChange={(event) => update("model", event.target.value)}><option value="hgb_q90">HGB q90</option><option value="hgb">HGB</option><option value="ewma">EWMA</option><option value="ewma_trend">EWMA trend</option><option value="seasonal">Seasonal</option><option value="persistence">Persistence</option><option value="gru">GRU (optional)</option></select></label>
       </div></details>
     </div>
     {error && <div className="error-box" role="alert">{error}</div>}

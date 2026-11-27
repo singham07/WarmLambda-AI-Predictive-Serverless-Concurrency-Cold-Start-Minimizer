@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from backend.api.services import instantiate_policy
 from backend.warmlambda.core.config import SimConfig
 from backend.warmlambda.core.metrics import compute_metrics, metrics_to_row
 from backend.warmlambda.core.policies.fixed import FixedWarming
@@ -56,6 +57,7 @@ def main() -> None:
         "fixed_10",
         "fixed_20",
         "reactive",
+        "wl_littles_law",
         "oracle",
     ]
 
@@ -78,6 +80,12 @@ def main() -> None:
                 ("fixed_10", FixedWarming(10)),
                 ("fixed_20", FixedWarming(20)),
                 ("reactive", Reactive()),
+                (
+                    "wl_littles_law",
+                    instantiate_policy(
+                        "wl_littles_law", trace, cfg, model="ewma"
+                    )[0],
+                ),
                 ("oracle", Oracle(trace, cfg)),
             ]
 

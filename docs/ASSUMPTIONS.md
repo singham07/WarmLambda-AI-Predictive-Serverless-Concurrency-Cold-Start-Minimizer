@@ -9,7 +9,7 @@ This document enumerates the core modeling assumptions, parameter values, and de
 
 ## 1. Summary of Simulation Parameters
 
-The table below maps all configurable simulation parameters from `SimConfig` ([backend/warmlambda/core/config.py](file:///c:/warmlambda/backend/warmlambda/core/config.py)) to their default values, units, and engineering rationales.
+The table below maps all configurable simulation parameters from `SimConfig` ([backend/warmlambda/core/config.py](../backend/warmlambda/core/config.py)) to their default values, units, and engineering rationales.
 
 | Parameter | Default Value | Units | Rationale |
 |---|---|---|---|
@@ -21,7 +21,8 @@ The table below maps all configurable simulation parameters from `SimConfig` ([b
 | `max_instances` | `100` | instances | Platform-level concurrency ceiling. Prevents unbounded instance allocation and simulates resource limits or account concurrency quotas. |
 | `concurrency_per_instance` | `1` | invocations | Invocations handled concurrently per instance container. Matches standard AWS Lambda container concurrency semantics (single request per worker). |
 | `queue_timeout_s` | `10.0` | seconds | Maximum queue dwell time before invocation drop. Represents API Gateway or client request timeout thresholds (HTTP 504 / 429 throttle error). |
-| `decision_interval_s` | `20.0` | seconds | Policy evaluation tick period. Balances control-loop responsiveness against excessive churn in instance provisioning. |
+| `decision_interval_s` | `20.0` | seconds | Policy evaluation tick period. Defaults to 20; the dashboard offers 1, 5, 10, and 20 second presets, and the API accepts any positive value. |
+| `lead_time_s` | `21.0` | seconds | Derived provisioning horizon: `init_time_s + decision_interval_s`. |
 | `warm_cost_weight` | `1.0` | unit / instance-second | Dimensionless resource consumption multiplier for an instance held idle in the warm state. |
 | `busy_cost_weight` | `1.0` | unit / instance-second | Dimensionless resource consumption multiplier for an instance actively executing invocations. Baseline reference cost. |
 
@@ -29,7 +30,7 @@ The table below maps all configurable simulation parameters from `SimConfig` ([b
 
 ## 2. Traffic Scenario Assumptions
 
-All traffic traces are generated using a non-homogeneous Poisson process (NHPP) via Lewis-Shedler thinning ([backend/warmlambda/core/traffic.py](file:///c:/warmlambda/backend/warmlambda/core/traffic.py)).
+All traffic traces are generated using a non-homogeneous Poisson process (NHPP) via Lewis-Shedler thinning ([backend/warmlambda/core/traffic.py](../backend/warmlambda/core/traffic.py)).
 
 | Scenario | Rate Function Formula | Peak Rate | Total Expected Invocations | Workload Characteristics |
 |---|---|---|---|---|
@@ -45,9 +46,9 @@ The realistic experiment adds `scheduled_bursts` and `daily_cycle`. It uses
 forecaster is given the known cycle as a stated assumption: 600 seconds for
 `scheduled_bursts` and 1800 seconds for `daily_cycle`.
 
-## 3. Policy Assumptions and Little's Law
+## 3. Policy Assumptions and Capacity Quantiles
 
-The WarmLambda predictive policy relies on Little's Law from queueing theory:
+The `wl_littles_law` baseline uses Little's Law from queueing theory:
 
 $$L = \lambda \cdot W$$
 
@@ -56,13 +57,18 @@ Where:
 - $\lambda$ is the forecasted arrival rate (requests per second) predicted for the upcoming window.
 - $W$ is the mean service time (`mean_exec_s`).
 
-The target warm instance capacity is computed as:
+The quantile policies model concurrent demand as Poisson with mean
+`forecast_rate * min(mean_exec_s, lead_time_s)`, and choose the smallest
+integer capacity `N` such that the probability of demand exceeding `N` is at
+most the configured epsilon (default 0.05):
 
-$$\text{Target} = \min\left(\text{max\_instances}, \lceil \lambda \cdot W \cdot (1 + \text{headroom}) \rceil\right)$$
+$$P(X > N) \leq \epsilon,\quad X \sim \text{Poisson}(\lambda \cdot \min(W,L))$$
 
-- **Headroom**: Multiplier (default 0.5, representing 50% safety buffer) above raw theoretical concurrency to absorb within-window arrival variance.
+- **Lead time**: `L` is `init_time_s + decision_interval_s`, the horizon during which capacity changes become available.
+- **Epsilon**: Maximum tolerated Poisson tail probability (default 0.05).
 - **Warm Budget**: Optional upper bound on proactively maintained warm containers to prevent cost overruns.
-- **Reactive Correction**: In hybrid mode (`wl_full`), the policy takes the maximum of proactive capacity and reactive concurrency demand: $\max(\text{Capacity}_{\text{forecast}}, \lceil (\text{busy} + \text{queue}) \cdot (1 + \text{headroom}) \rceil)$.
+- **Reactive Correction**: Hybrid quantile mode takes the maximum of quantile forecast capacity and current busy + queued load.
+- **Oracle**: Uses the actual request arrival and execution times to provision the next interval's peak concurrency immediately. It cheats and is only an unattainable upper bound.
 
 ---
 

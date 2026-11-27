@@ -33,6 +33,9 @@ POLICY_SPECS = [
     ("fixed_10", "fixed", 10, None),
     ("reactive", "reactive", None, None),
     ("wl_forecast_only_seasonal", "wl_forecast_only", None, "seasonal"),
+    ("wl_littles_law_seasonal", "wl_littles_law", None, "seasonal"),
+    ("wl_quantile_forecast_only_seasonal", "wl_quantile_forecast_only", None, "seasonal"),
+    ("wl_quantile_full_seasonal", "wl_quantile_full", None, "seasonal"),
     ("wl_full_seasonal", "wl_full", None, "seasonal"),
     ("wl_full_ewma", "wl_full", None, "ewma"),
     ("oracle", "oracle", None, None),
@@ -91,7 +94,9 @@ def _write_summary(rows: list[dict[str, Any]]) -> str:
         "# Realistic scale-to-zero evaluation",
         "",
         "The 10-second idle timeout models scale-to-zero platforms. Seasonal "
-        "forecasting is given the known scenario cycle (600 s or 1800 s).",
+        "forecasting is given the known scenario cycle (600 s or 1800 s). "
+        "The Oracle uses future trace data and instantaneous provisioning; it "
+        "is an unattainable upper bound, not a deployable policy.",
         "",
     ]
     for scenario in SCENARIO_PERIODS:
@@ -185,8 +190,6 @@ def main() -> None:
         for seed in SEEDS:
             for policy_name, policy_type, fixed_n, model in POLICY_SPECS:
                 rows.append(_run(scenario, seed, policy_name, policy_type, fixed_n, model))
-    if not (ROOT / "models" / "hgb_q90.joblib").exists():
-        print("[run_realistic] Skipping hgb_q90: models/hgb_q90.joblib is unavailable.")
     with open(RESULTS / "realistic.csv", "w", newline="", encoding="utf-8") as handle:
         fieldnames = ["scenario", "policy", "seed"] + sorted(
             key for key in rows[0] if key not in {"scenario", "policy", "seed"}
